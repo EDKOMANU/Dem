@@ -1,0 +1,14 @@
+Package: Dem
+Title: This Package is used to compute demographic metrics
+Version: 1.00.1
+Authors@R: 
+    person("Edward Owusu", "Manu", "manuedward32@gmail.com", role = c("aut", "cre")
+           )
+Description: This Package is used to compute demographic metrics, indirect estimations, and demographic models.
+License: `use_mit_license()`, 
+Encoding: UTF-8
+Roxygen: list(markdown = TRUE)
+RoxygenNote: 7.3.2
+Suggests: 
+    testthat (>= 3.0.0)
+Config/testthat/edition: 3
