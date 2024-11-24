@@ -1,56 +1,81 @@
-#' Calculate Child, Infant, and Neonatal Mortality
+#' Calculate Child Mortality Metrics by Age
 #'
-#' This function calculates Child Mortality Rate, Infant Mortality Rate, and Neonatal Mortality Rate.
+#' This function calculates child mortality metrics (neonatal, infant, child, under-5)
+#' based on single-age data. It requires columns for age, population, and deaths.
 #'
 #' @param data A dataframe containing demographic data.
-#' @param age_col The column name for age groups.
-#' @param deaths_col The column name for total deaths.
-#' @param live_births_col The column name for live births.
-#' @param infant_deaths_col The column name for infant deaths.
-#' @param neonatal_deaths_col The column name for neonatal deaths.
-#' @return A list with Child Mortality, Infant Mortality, and Neonatal Mortality.
+#' @param age_col The column name representing the age (in years or months for neonates).
+#' @param population_col The column name representing the population at each age.
+#' @param deaths_col The column name representing deaths at each age.
+#' @param type The type of mortality calculation to perform:
+#'             "neonatal", "infant", "child", or "under5".
+#' @param neonatal_age_col (Optional) The column name for age in months for neonatal mortality.
+#' @return A numeric value representing the mortality rate per 1,000 live births.
 #' @examples
 #' demo_data <- data.frame(
-#'   age = c("0-4", "5-9", "10-14"),
-#'   infant_deaths = c(20, 15, 10),
-#'   neonatal_deaths = c(5, 4, 3),
-#'   total_deaths = c(100, 50, 30),
-#'   live_births = c(2000, 2500, 2400)
+#'   age = 0:10,
+#'   population = c(1000, 950, 900, 850, 800, 750, 700, 650, 600, 550, 500),
+#'   deaths = c(30, 20, 15, 10, 5, 2, 1, 1, 0, 0, 0)
 #' )
-#' dem.chm(demo_data, age_col = "age", deaths_col = "total_deaths",
-#'                           live_births_col = "live_births",
-#'                           infant_deaths_col = "infant_deaths",
-#'                           neonatal_deaths_col = "neonatal_deaths")
+#' dm.chm(demo_data,
+#'                                  age_col = "age",
+#'                                  population_col = "population",
+#'                                  deaths_col = "deaths",
+#'                                  type = "under5")
 #' @export
-dem.chm <- function(data, age_col, deaths_col, live_births_col,
-                                      infant_deaths_col, neonatal_deaths_col) {
+dm.chm <- function(data, age_col, population_col, deaths_col,
+                                             type = c("neonatal", "infant", "child", "under5"),
+                                             neonatal_age_col = NULL) {
   # Validate inputs
   if (!is.data.frame(data)) stop("Input 'data' must be a dataframe.")
-  if (!all(c(deaths_col, live_births_col, infant_deaths_col, neonatal_deaths_col) %in% colnames(data))) {
-    stop("Specified columns not found in the dataframe.")
+
+  # Check required columns
+  required_cols <- c(age_col, population_col, deaths_col)
+  if (!all(required_cols %in% colnames(data))) stop("Required columns not found in the dataframe.")
+
+  # Match type argument
+  type <- match.arg(type)
+
+  # Additional validation for neonatal mortality
+  if (type == "neonatal" && is.null(neonatal_age_col)) {
+    stop("For neonatal mortality, the 'neonatal_age_col' argument must be provided.")
+  }
+  if (!is.null(neonatal_age_col) && !(neonatal_age_col %in% colnames(data))) {
+    stop("The specified 'neonatal_age_col' column is not found in the dataframe.")
   }
 
-  # Calculate Child Mortality Rate (under 5 years)
-  child_mortality <- (sum(data[[deaths_col]]) / sum(data[[live_births_col]])) * 1000
-  # Calculate Infant Mortality Rate (under 1 year)
-  infant_mortality <- (sum(data[[infant_deaths_col]]) / sum(data[[live_births_col]])) * 1000
-  # Calculate Neonatal Mortality Rate (under 28 days)
-  neonatal_mortality <- (sum(data[[neonatal_deaths_col]]) / sum(data[[live_births_col]])) * 1000
+  # Filter data based on mortality type
+  if (type == "neonatal") {
+    # Neonatal: Age in months should be <= 1 month
+    data_filtered <- data[data[[neonatal_age_col]] <= 1, ]
+  } else if (type == "infant") {
+    # Infant: Age in years should be < 1
+    data_filtered <- data[data[[age_col]] < 1, ]
+  } else if (type == "child") {
+    # Child: Age in years should be between 1 and 4
+    data_filtered <- data[data[[age_col]] >= 1 & data[[age_col]] < 5, ]
+  } else if (type == "under5") {
+    # Under-5: Age in years should be < 5
+    data_filtered <- data[data[[age_col]] < 5, ]
+  }
 
-  results <- list(
-    Child_Mortality = child_mortality,
-    Infant_Mortality = infant_mortality,
-    Neonatal_Mortality = neonatal_mortality
-  )
+  # Validate filtered data
+  if (nrow(data_filtered) == 0) {
+    stop("No data available for the specified mortality type.")
+  }
 
-  cat("Child Mortality Rate (under 5 years):\n")
-  print(child_mortality)
+  # Calculate the mortality rate
+  total_deaths <- sum(data_filtered[[deaths_col]])
+  total_population <- sum(data_filtered[[population_col]])
 
-  cat("Infant Mortality Rate (under 1 year):\n")
-  print(infant_mortality)
+  if (total_population == 0) {
+    stop("Total population for the specified mortality type is zero. Calculation cannot proceed.")
+  }
 
-  cat("Neonatal Mortality Rate (under 28 days):\n")
-  print(neonatal_mortality)
+  mortality_rate <- (total_deaths / total_population) * 1000
 
-  return(results)
+  # Output result
+  cat(sprintf("The %s mortality rate is: %.2f per 1,000 live births\n", type, mortality_rate))
+
+  return(mortality_rate)
 }
