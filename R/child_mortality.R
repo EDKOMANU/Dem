@@ -23,7 +23,7 @@
 #'                                  deaths_col = "deaths",
 #'                                  type = "under5")
 #' @export
-dm.chm <- function(data, age_col, population_col, deaths_col,
+dm.chm <- function(data, age_col = NULL, population_col, deaths_col,
                                              type = c("neonatal", "infant", "child", "under5"),
                                              neonatal_age_col = NULL) {
   # Validate inputs
