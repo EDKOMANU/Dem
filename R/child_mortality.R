@@ -5,11 +5,11 @@
 #'
 #' @param data A dataframe containing demographic data.
 #' @param age_col The column name representing the age (in years or months for neonates).
-#' @param population_col The column name representing the population at each age.
+#' @param live_births The column name representing the population at each age.
 #' @param deaths_col The column name representing deaths at each age.
 #' @param type The type of mortality calculation to perform:
 #'             "neonatal", "infant", "child", or "under5".
-#' @param neonatal_age_col (Optional) The column name for age in months for neonatal mortality.
+#' @param age_in_months (Optional) The column name for age in months for neonatal mortality.
 #' @return A numeric value representing the mortality rate per 1,000 live births.
 #' @examples
 #' demo_data <- data.frame(
@@ -17,37 +17,36 @@
 #'   population = c(1000, 950, 900, 850, 800, 750, 700, 650, 600, 550, 500),
 #'   deaths = c(30, 20, 15, 10, 5, 2, 1, 1, 0, 0, 0)
 #' )
-#' dm.chm(demo_data,
-#'                                  age_col = "age",
-#'                                  population_col = "population",
+#' dm.chm(demo_data,age_col = "age",
+#'                                  live_births = "population",
 #'                                  deaths_col = "deaths",
 #'                                  type = "under5")
 #' @export
-dm.chm <- function(data, age_col, population_col, deaths_col,
+dm.chm <- function(data, age_col, live_births, deaths_col,
                                              type = c("neonatal", "infant", "child", "under5"),
-                                             neonatal_age_col = NULL) {
+                                             age_in_months = NULL) {
   # Validate inputs
   if (!is.data.frame(data)) stop("Input 'data' must be a dataframe.")
 
   # Check required columns
-  required_cols <- c(age_col, population_col, deaths_col)
+  required_cols <- c(age_col, live_births, deaths_col)
   if (!all(required_cols %in% colnames(data))) stop("Required columns not found in the dataframe.")
 
   # Match type argument
   type <- match.arg(type)
 
   # Additional validation for neonatal mortality
-  if (type == "neonatal" && is.null(neonatal_age_col)) {
-    stop("For neonatal mortality, the 'neonatal_age_col' argument must be provided.")
+  if (type == "neonatal" && is.null(age_in_months)) {
+    stop("For neonatal mortality, the 'age_in_months' argument must be provided.")
   }
-  if (!is.null(neonatal_age_col) && !(neonatal_age_col %in% colnames(data))) {
-    stop("The specified 'neonatal_age_col' column is not found in the dataframe.")
+  if (!is.null(age_in_months) && !(age_in_months %in% colnames(data))) {
+    stop("The specified 'age_in_months' column is not found in the dataframe.")
   }
 
   # Filter data based on mortality type
   if (type == "neonatal") {
     # Neonatal: Age in months should be <= 1 month
-    data_filtered <- data[data[[neonatal_age_col]] <= 1, ]
+    data_filtered <- data[data[[age_in_months]] <= 1, ]
   } else if (type == "infant") {
     # Infant: Age in years should be < 1
     data_filtered <- data[data[[age_col]] < 1, ]
@@ -66,7 +65,7 @@ dm.chm <- function(data, age_col, population_col, deaths_col,
 
   # Calculate the mortality rate
   total_deaths <- sum(data_filtered[[deaths_col]])
-  total_population <- sum(data_filtered[[population_col]])
+  total_population <- sum(data_filtered[[live_births]])
 
   if (total_population == 0) {
     stop("Total population for the specified mortality type is zero. Calculation cannot proceed.")

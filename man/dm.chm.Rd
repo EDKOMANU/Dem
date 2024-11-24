@@ -7,10 +7,10 @@
 dm.chm(
   data,
   age_col,
-  population_col,
+  live_births,
   deaths_col,
   type = c("neonatal", "infant", "child", "under5"),
-  neonatal_age_col = NULL
+  age_in_months = NULL
 )
 }
 \arguments{
@@ -18,14 +18,14 @@ dm.chm(
 
 \item{age_col}{The column name representing the age (in years or months for neonates).}
 
-\item{population_col}{The column name representing the population at each age.}
+\item{live_births}{The column name representing the population at each age.}
 
 \item{deaths_col}{The column name representing deaths at each age.}
 
 \item{type}{The type of mortality calculation to perform:
 "neonatal", "infant", "child", or "under5".}
 
-\item{neonatal_age_col}{(Optional) The column name for age in months for neonatal mortality.}
+\item{age_in_months}{(Optional) The column name for age in months for neonatal mortality.}
 }
 \value{
 A numeric value representing the mortality rate per 1,000 live births.
@@ -40,9 +40,8 @@ demo_data <- data.frame(
   population = c(1000, 950, 900, 850, 800, 750, 700, 650, 600, 550, 500),
   deaths = c(30, 20, 15, 10, 5, 2, 1, 1, 0, 0, 0)
 )
-dm.chm(demo_data,
-                                 age_col = "age",
-                                 population_col = "population",
+dm.chm(demo_data,age_col = "age",
+                                 live_births = "population",
                                  deaths_col = "deaths",
                                  type = "under5")
 }
