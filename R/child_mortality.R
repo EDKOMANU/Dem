@@ -17,12 +17,12 @@
 #'   population = c(1000, 950, 900, 850, 800, 750, 700, 650, 600, 550, 500),
 #'   deaths = c(30, 20, 15, 10, 5, 2, 1, 1, 0, 0, 0)
 #' )
-#' dem.chm(demo_data,age_col = "age",
+#' dm.chm(demo_data,age_col = "age",
 #'                                  live_births = "population",
 #'                                  deaths_col = "deaths",
 #'                                  type = "under5")
 #' @export
-dem.chm <- function(data, age_col, live_births, deaths_col,
+dm.chm <- function(data, age_col, live_births, deaths_col,
                                              type = c("neonatal", "infant", "child", "under5"),
                                              age_in_months = NULL) {
   # Validate inputs
