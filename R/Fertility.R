@@ -20,13 +20,13 @@
 #' )
 #
 #' # Calculate ASFR
-#' dm.fert(demo_data, type = "ASFR", age_col = "age",
+#' dem.fert(demo_data, type = "ASFR", age_col = "age",
 #'                     population_col = "population", women_col = "women", births_col = "live_births")
 #' # Calculate all metrics
 #' dem.fert(demo_data, type = "all", age_col = "age",
 #'                     population_col = "population", women_col = "women", births_col = "live_births")
 #' @export
-dm.fert <- function(data, type, age_col = NULL, population_col, women_col = NULL, births_col) {
+dem.fert <- function(data, type, age_col = NULL, population_col, women_col = NULL, births_col) {
   # Validate inputs
   if (!is.data.frame(data)) stop("Input 'data' must be a dataframe.")
   if (is.character(type) && type == "all") type <- c("CBR", "GFR", "ASFR", "TFR")
