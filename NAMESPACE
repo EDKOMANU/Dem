@@ -2,5 +2,6 @@
 
 export(dem.cdr)
 export(dem.fert)
+export(dem.lifetables)
 export(dem.mmr)
 export(dm.chm)
