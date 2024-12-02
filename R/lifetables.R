@@ -7,12 +7,12 @@
 #' @param nMx Numeric vector (optional): the observed mortality rates in the population. If not provided, `pop` and `Dx` must be given to compute it.
 #' @param pop Numeric vector (optional): total population in each age group. Used to compute `nMx` if not given.
 #' @param Dx Numeric vector (optional): deaths occurred in each age group. Used to compute `nMx` if not given.
-#' @param nqx Numeric vector (optional):probability of dying
+#'
 #'
 #' @return
 #' A list containing:
 #' \describe{
-#'   \item{`metrics`}{A list of all calculated life table metrics.}
+#'   \item{`metrics`}{A list of the life expectncy at birth and the total deaths recorded}
 #'   \item{`lifetable`}{A dataframe of the complete life table.}
 #' }
 #'
@@ -22,18 +22,18 @@
 
 
 # Call the function
-#'dem.lifetables(data=gphc2010, age = "Age", pop = "Pop", Dx = "Deaths")
+#'lifetable_basic(data=gphc2010, age = "Age", pop = "Pop", Dx = "Deaths")
 
 #'
 #'
 
 #' @export
-dem.lifetables <- function(data,
+lifetable_basic <- function(data,
                            age = "Age",
                            nMx = NULL,
                            pop = NULL,
-                           Dx = NULL,
-                           nqx=NULL) {
+                           Dx = NULL
+                           ) {
   # Check if required columns are present
   if (is.null(nMx) && (is.null(pop) || is.null(Dx))) {
     stop("If nMx is not provided, both pop and Dx must be specified.")
