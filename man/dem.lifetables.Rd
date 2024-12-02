@@ -4,7 +4,14 @@
 \alias{dem.lifetables}
 \title{Life Table Computations}
 \usage{
-dem.lifetables(data, age = "Age", nMx = NULL, pop = NULL, Dx = NULL)
+dem.lifetables(
+  data,
+  age = "Age",
+  nMx = NULL,
+  pop = NULL,
+  Dx = NULL,
+  nqx = NULL
+)
 }
 \arguments{
 \item{age}{Numeric vector: age groups to be presented in point format, e.g., 0, 1, 5, 10, ...}
@@ -14,6 +21,8 @@ dem.lifetables(data, age = "Age", nMx = NULL, pop = NULL, Dx = NULL)
 \item{pop}{Numeric vector (optional): total population in each age group. Used to compute \code{nMx} if not given.}
 
 \item{Dx}{Numeric vector (optional): deaths occurred in each age group. Used to compute \code{nMx} if not given.}
+
+\item{nqx}{Numeric vector (optional):probability of dying}
 }
 \value{
 A list containing:

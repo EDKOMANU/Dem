@@ -26,13 +26,14 @@
 
 #'
 #'
+
 #' @export
 dem.lifetables <- function(data,
-                               age = "Age",
-                               nMx = NULL,
-                               pop = NULL,
-                               Dx = NULL,
-                              nqx=NULL) {
+                           age = "Age",
+                           nMx = NULL,
+                           pop = NULL,
+                           Dx = NULL,
+                           nqx=NULL) {
   # Check if required columns are present
   if (is.null(nMx) && (is.null(pop) || is.null(Dx))) {
     stop("If nMx is not provided, both pop and Dx must be specified.")
@@ -66,8 +67,8 @@ dem.lifetables <- function(data,
 
   # Compute nax
   lifetable$nax <- ifelse(lifetable$Age == 0,
-                                     ifelse(lifetable$nMx < 0.107, 0.045 + 2.684 * lifetable$nMx, 0.33),
-                                     ifelse(lifetable$Age == 1,
+                          ifelse(lifetable$nMx < 0.107, 0.045 + 2.684 * lifetable$nMx, 0.33),
+                          ifelse(lifetable$Age == 1,
                                  1.5,
                                  2.5)) # Placeholder for 5-year intervals
   # Compute nax for all other intervals (5-year intervals)
