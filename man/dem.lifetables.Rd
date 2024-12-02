@@ -28,8 +28,8 @@ It takes a dataframe with the necessary inputs and computes standard life table 
 }
 \examples{
 #Example without moratlity rate
-data <- data(gphc2010)
-dem.lifetables(data, age = Age, pop = Pop, Dx = "Deaths")
+data(gphc2010)
+dem.lifetables(data=gphc2010, age = "Age", pop = "Pop", Dx = "Deaths")
 
 
 }
