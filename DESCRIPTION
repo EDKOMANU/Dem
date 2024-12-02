@@ -5,7 +5,7 @@ Authors@R:
     person("Edward Owusu", "Manu", email = "manuedward32@gmail.com", role = c("aut", "cre")
            )
 Description: This Package is used to compute demographic metrics, indirect estimations, and demographic models.
-License: `use_mit_license()`, 
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
@@ -15,3 +15,6 @@ Config/testthat/edition: 3
 Depends: 
     R (>= 2.10)
 LazyData: true
+Imports: 
+    stats,
+    stats4
