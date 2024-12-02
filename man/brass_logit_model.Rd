@@ -30,11 +30,13 @@ observed_data <- data.frame(
   qx = c(0.1, 0.05, 0.02, NA, 0.005, NA, 0.002, 0.0015, NA, 0.0008, 0.0006, 0.0005)
 )
 
-brass_logit_model(
+model<-brass_logit_model(
   data = observed_data,
   qx_col = "qx",
   age_col = "age",
   standard = "African"
 )
-
+lifetable<- model$data
+lifetable
+lifetable_nqx(lifetable, age="age", nqx = "predicted_qx")
 }

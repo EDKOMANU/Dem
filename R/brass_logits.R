@@ -15,13 +15,15 @@
 #'   qx = c(0.1, 0.05, 0.02, NA, 0.005, NA, 0.002, 0.0015, NA, 0.0008, 0.0006, 0.0005)
 #' )
 #'
-#' brass_logit_model(
+#' model<-brass_logit_model(
 #'   data = observed_data,
 #'   qx_col = "qx",
 #'   age_col = "age",
 #'   standard = "African"
 #' )
-#'
+#' lifetable<- model$data
+#' lifetable
+#' lifetable_nqx(lifetable, age="age", nqx = "predicted_qx")
 
 #' @export
 brass_logit_model <- function(data, qx_col, age_col, standard, standards_data = NULL) {
@@ -63,7 +65,7 @@ brass_logit_model <- function(data, qx_col, age_col, standard, standards_data = 
   predicted_qx <- exp(predicted_logits) / (1 + exp(predicted_logits))
 
   # Replace NA values in qx with predicted values
-  data[[qx_col]] <- ifelse(is.na(qx), predicted_qx, qx)
+  data$predicted_qx <-  predicted_qx
 
   # Return results
   return(list(
