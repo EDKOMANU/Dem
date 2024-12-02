@@ -1,16 +1,12 @@
 #' Brass Logit Model
 #'
-#' This function fits a Brass Logit Model based on user-specified standards.
-#' The function uses the linear transformation property of the Brass Logit Model.
-#'
-#' @param data A data frame containing the observed probabilities (qx).
-#' @param qx_col A string specifying the column name for the observed probabilities (qx).
-#' @param age_col A string specifying the column name for age groups.
-#' @param standard A string specifying the standard to use ("African" or "GeneralUN").
-#' @param standards_data A data frame containing the standard logits (must include columns for "Age", standard probabilities, and logits).
-#' @param ... Additional arguments passed to `lm()` for fitting the linear model.
+#' @param data A data frame containing the observed probabilities (nqx) and ages.
+#' @param qx_col Column name for nqx in the data frame.
+#' @param age_col Column name for age in the data frame.
+#' @param standard Standard to use ("African" or "GeneralUN").
+#' @param standards_data Standards dataset (default: included "standards").
+#' @return A list containing the model, coefficients, and modified data with predicted nqx.
 #' @importFrom stats lm predict coef
-#' @return A data frame containing the original data and the predicted qx values, with predictions for missing qx.
 #'
 #' @examples
 #' # Example data with NA for some qx values
@@ -26,58 +22,53 @@
 #'   standard = "African"
 #' )
 #'
-#'
+
 #' @export
-brass_logit_model <- function(data, qx_col, age_col, standard, standards_data = NULL, ...) {
+brass_logit_model <- function(data, qx_col, age_col, standard, standards_data = NULL) {
+  # Load the internal standards dataset if not provided
+  if (is.null(standards_data)) {
+    data("standards", package = "Dem")
+    standards_data <- standards
+  }
+
   # Validate inputs
-  if (!is.data.frame(data)) stop("Input must be a data frame.")
+  if (!is.data.frame(data)) stop("Input data must be a data frame.")
   if (!qx_col %in% colnames(data) || !age_col %in% colnames(data)) {
-    stop("Specified columns for qx and age must exist in the data frame.")
+    stop("Specified columns for nqx and age must exist in the data frame.")
   }
   if (!standard %in% c("African", "GeneralUN")) {
-    stop("Invalid standard specified. Choose 'African' or 'GeneralUN'.")
-  }
-
-  # Use the internal standards data if not provided
-  if (is.null(standards_data)) {
-    data("standards", package = "Dem")  # Load the internal standards data
-    standards_data <- standards  # Assign the loaded dataset
-  }
-
-  # Ensure the standards data has the correct structure
-  if (!is.data.frame(standards_data) || !all(c("Age", paste0(standard, "_logit")) %in% colnames(standards_data))) {
-    stop("Standards data must be a data frame with columns 'Age' and the corresponding standard logits.")
+    stop("Invalid standard. Choose 'African' or 'GeneralUN'.")
   }
 
   # Extract observed probabilities and age
   qx <- data[[qx_col]]
   age <- data[[age_col]]
 
-  if (any(qx <= 0 | qx >= 1, na.rm = TRUE)) stop("qx values must be between 0 and 1 (exclusive), excluding NAs.")
-
-  # Logit transformation of observed qx
-  logit_qx <- log(qx / (1 - qx))
-
-  # Match age in the standards data
+  # Match age in standards data
   standard_logits <- standards_data[[paste0(standard, "_logit")]][match(age, standards_data$Age)]
-  if (any(is.na(standard_logits))) stop("Mismatch between provided age groups and standards data.")
+  if (any(is.na(standard_logits))) {
+    stop("Mismatch between age groups in the input data and standards data.")
+  }
 
-  # Fit the linear model (only use rows where qx is not NA)
-  lm_fit <- lm(logit_qx ~ standard_logits, data = data, subset = !is.na(qx), ...)
+  # Logit transformation of observed qx (only where qx is not NA)
+  logit_qx <- ifelse(!is.na(qx), log(qx / (1 - qx)), NA)
 
-  # Predicted values for all ages
-  predicted_logits <- predict(lm_fit, newdata = data)
+  # Fit the model using non-NA values
+  lm_fit <- lm(logit_qx ~ standard_logits, subset = !is.na(logit_qx))
+
+  # Predict logits for all ages
+  predicted_logits <- predict(lm_fit, newdata = data.frame(standard_logits = standard_logits))
+
+  # Transform logits back to probabilities
   predicted_qx <- exp(predicted_logits) / (1 + exp(predicted_logits))
 
-  # For rows where qx is NA, replace the missing qx with the predicted qx
-  data$predicted_qx <- ifelse(is.na(qx), predicted_qx, qx)
+  # Replace NA values in qx with predicted values
+  data[[qx_col]] <- ifelse(is.na(qx), predicted_qx, qx)
 
-  # Return the modified data frame with predicted qx values
-  result <- list(
+  # Return results
+  return(list(
     model = lm_fit,
     coefficients = coef(lm_fit),
-    data = data  # Return the modified data frame with predicted qx
-  )
-
-  return(result)
+    data = data
+  ))
 }

@@ -4,27 +4,24 @@
 \alias{brass_logit_model}
 \title{Brass Logit Model}
 \usage{
-brass_logit_model(data, qx_col, age_col, standard, standards_data = NULL, ...)
+brass_logit_model(data, qx_col, age_col, standard, standards_data = NULL)
 }
 \arguments{
-\item{data}{A data frame containing the observed probabilities (qx).}
+\item{data}{A data frame containing the observed probabilities (nqx) and ages.}
 
-\item{qx_col}{A string specifying the column name for the observed probabilities (qx).}
+\item{qx_col}{Column name for nqx in the data frame.}
 
-\item{age_col}{A string specifying the column name for age groups.}
+\item{age_col}{Column name for age in the data frame.}
 
-\item{standard}{A string specifying the standard to use ("African" or "GeneralUN").}
+\item{standard}{Standard to use ("African" or "GeneralUN").}
 
-\item{standards_data}{A data frame containing the standard logits (must include columns for "Age", standard probabilities, and logits).}
-
-\item{...}{Additional arguments passed to \code{lm()} for fitting the linear model.}
+\item{standards_data}{Standards dataset (default: included "standards").}
 }
 \value{
-A data frame containing the original data and the predicted qx values, with predictions for missing qx.
+A list containing the model, coefficients, and modified data with predicted nqx.
 }
 \description{
-This function fits a Brass Logit Model based on user-specified standards.
-The function uses the linear transformation property of the Brass Logit Model.
+Brass Logit Model
 }
 \examples{
 # Example data with NA for some qx values
@@ -39,6 +36,5 @@ brass_logit_model(
   age_col = "age",
   standard = "African"
 )
-
 
 }
