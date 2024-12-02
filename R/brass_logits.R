@@ -10,7 +10,6 @@
 #' @param standards_data A data frame containing the standard logits (must include columns for "Age", standard probabilities, and logits).
 #' @param ... Additional arguments passed to `lm()` for fitting the linear model.
 #' @importFrom stats lm predict coef
-#' @importFrom base log
 #' @return A data frame containing the original data and the predicted qx values, with predictions for missing qx.
 #'
 #' @examples
