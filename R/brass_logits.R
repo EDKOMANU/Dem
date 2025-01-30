@@ -53,7 +53,7 @@ brass_logit_model <- function(data, qx_col, age_col, standard, standards_data = 
   }
 
   # Logit transformation of observed qx (only where qx is not NA)
-  logit_qx <- ifelse(!is.na(qx), log(qx / (1 - qx)), NA)
+  logit_qx <- ifelse(!is.na(qx), 0.5*log(qx / (1 - qx)), NA)
 
   # Fit the model using non-NA values
   lm_fit <- lm(logit_qx ~ standard_logits, subset = !is.na(logit_qx))
