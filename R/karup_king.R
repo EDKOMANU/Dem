@@ -95,7 +95,7 @@
 
 
 karup_king<- function(df, age_col = "age_group", pops = "population",
-                      first_coef=NULL, middle_coef = NULL, last_coef = NULL) {
+                      first_coef=first_coef, middle_coef = middle_coef, last_coef = last_coef) {
   # Split the specified age column into start and end ages
   df <- df |>
     tidyr::separate(col = {{age_col}}, into = c("start_age", "end_age"),

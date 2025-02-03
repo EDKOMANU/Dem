@@ -8,9 +8,9 @@ karup_king(
   df,
   age_col = "age_group",
   pops = "population",
-  first_coef = NULL,
-  middle_coef = NULL,
-  last_coef = NULL
+  first_coef = first_coef,
+  middle_coef = middle_coef,
+  last_coef = last_coef
 )
 }
 \arguments{

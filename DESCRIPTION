@@ -1,20 +1,17 @@
 Package: Dem
-Title: This Package is used to compute demographic metrics
-Version: 1.00.1
+Title: What the Package Does (One Line, Title Case)
+Version: 0.0.0.9000
 Authors@R: 
-    person("Edward Owusu", "Manu", email = "manuedward32@gmail.com", role = c("aut", "cre")
-           )
-Description: This Package is used to compute demographic metrics, indirect estimations, and demographic models.
-License: MIT + file LICENSE
+    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
+Description: What the package does (one paragraph).
+License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
+    license
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
-Suggests: 
-    testthat (>= 3.0.0)
-Config/testthat/edition: 3
-Depends: 
-    R (>= 3.5)
-LazyData: true
 Imports: 
+    dplyr,
     stats,
-    dplyr, dplyr
+    tidyr
+Depends: 
+    tidyverse
