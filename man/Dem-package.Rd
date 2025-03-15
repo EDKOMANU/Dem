@@ -4,12 +4,12 @@
 \name{Dem-package}
 \alias{Dem}
 \alias{Dem-package}
-\title{Dem: What the Package Does (One Line, Title Case)}
+\title{Dem: Demographic Analysis}
 \description{
-What the package does (one paragraph).
+The Dem package is an all-in-one demographic modeling tool that integrates an R-based Bayesian framework to model fertility, mortality, migration, and run population projections.
 }
 \author{
-\strong{Maintainer}: First Last \email{first.last@example.com}
+\strong{Maintainer}: Edward Owusu Manu \email{edward.manu@statsghana.gov.gh}
 
 }
 \keyword{internal}

@@ -1,11 +1,11 @@
 Package: Dem
-Title: What the Package Does (One Line, Title Case)
-Version: 0.0.0.9000
+Title: Demographic Analysis
+Version: 0.0.12
 Authors@R: 
-    person("First", "Last", , "first.last@example.com", role = c("aut", "cre"))
-Description: What the package does (one paragraph).
-License: `use_mit_license()`, `use_gpl3_license()` or friends to pick a
-    license
+    person("Edward", "Owusu Manu", email = "edward.manu@statsghana.gov.gh", 
+           role = c("aut", "cre"))
+Description: The Dem package is an all-in-one demographic modeling tool that integrates an R-based Bayesian framework to model fertility, mortality, migration, and run population projections.
+License: MIT + file LICENSE
 Encoding: UTF-8
 Roxygen: list(markdown = TRUE)
 RoxygenNote: 7.3.2
@@ -19,8 +19,12 @@ Imports:
     stats,
     tidyr
 Depends: 
-    R (>= 3.5),
-    tidyverse
+    R (>= 4.2),
+    tidyverse,
+    logger,
+    R6,
+    data.table,
+    brms
 Suggests: 
     knitr,
     rmarkdown
