@@ -1,0 +1,443 @@
+---
+title: "Probabilistic Cohort Component Projection"
+author: "Edward Owusu Manu"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{ppp}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>"
+)
+```
+
+# Population Projector: Comprehensive Technical Documentation
+
+*Last Updated: 2025-03-13 22:44:52* *Author: EDKOMANU*
+
+## Table of Contents
+
+1.  [System Overview](#system-overview)
+2.  [Core Components](#core-components)
+3.  [Demographic Models](#demographic-models)
+4.  [Projection Process](#projection-process)
+5.  [Data Structures](#data-structures)
+6.  [Implementation Details](#implementation-details)
+7.  [Examples](#examples)
+8.  [Validation and Testing](#validation-and-testing)
+
+## System Overview {#system-overview}
+
+The Population Projector is a comprehensive demographic projection system designed to forecast population dynamics based on mortality, fertility, and migration data. The system uses a cohort-component methodology to project population size, age distribution, and other demographic indicators over a specified time horizon. Key features of the Population Projector include: \### Architecture The Population Projector implements a cohort-component methodology using R6 classes:
+
+``` r
+# Main class structure
+PopulationProjector <- R6::R6Class(
+  "PopulationProjector",
+  public = list(
+    mortality_model = NULL,
+    fertility_model = NULL,
+    migration_model = NULL,
+    projections = NULL,
+    projection_variants = NULL,
+    
+    initialize = function(mortality_model = NULL, 
+                         fertility_model = NULL, 
+                         migration_model = NULL) {
+      self$mortality_model <- mortality_model
+      self$fertility_model <- fertility_model
+      self$migration_model <- migration_model
+    }
+  )
+)
+```
+
+## Core Components {#core-components}
+
+### 1. Variable Mapping System
+
+``` r
+private = list(
+  get_variable_mapping = function() {
+    return(list(
+      time = "year",
+      age = "age_group",
+      sex = "sex",
+      population = "population",
+      births = "births",
+      deaths = "deaths",
+      region = "region",
+      district = "district",
+      in_migration = "in_migration",
+      out_migration = "out_migration"
+    ))
+  }
+)
+```
+
+### 2. Age Progression System
+
+``` r
+age_population = function(population, var_map) {
+  pop <- copy(population)
+  age_groups <- unique(pop[[var_map$age]])
+  age_groups <- sort(age_groups)
+  
+  # Create age progression mapping
+  age_mapping <- data.table(
+    current_age = age_groups[-length(age_groups)],
+    next_age = age_groups[-1]
+  )
+  
+  # Progress through age groups
+  for (i in seq_len(nrow(age_mapping))) {
+    current_age <- age_mapping$current_age[i]
+    next_age <- age_mapping$next_age[i]
+    pop[get(var_map$age) == current_age, (var_map$age) := next_age]
+  }
+  
+  return(pop)
+}
+```
+
+## Demographic Models {#demographic-models}
+
+### 1. Mortality Model
+
+``` r
+MortalityModel <- R6::R6Class(
+  "MortalityModel",
+  public = list(
+    # Model parameters
+    base_rates = NULL,
+    time_trend = NULL,
+    uncertainty_parameters = NULL,
+    
+    initialize = function(base_rates = NULL) {
+      self$base_rates <- base_rates
+    },
+    
+    predict_mortality = function(population, uncertainty = FALSE) {
+      # Get base mortality rates
+      mort_rates <- self$get_base_rates(population)
+      
+      if (uncertainty) {
+        # Add uncertainty using log-normal distribution
+        uncertainty_factor <- rlnorm(
+          n = nrow(population),
+          meanlog = 0,
+          sdlog = self$uncertainty_parameters$sd
+        )
+        mort_rates <- mort_rates * uncertainty_factor
+      }
+      
+      return(mort_rates)
+    },
+    
+    get_base_rates = function(population) {
+      # Implement base rate calculation
+    }
+  )
+)
+```
+
+### 2. Fertility Model
+
+``` r
+FertilityModel <- R6::R6Class(
+  "FertilityModel",
+  public = list(
+    # Model parameters
+    age_specific_rates = NULL,
+    time_trend = NULL,
+    sex_ratio = 1.05,  # Male births per female birth
+    
+    initialize = function(age_specific_rates = NULL) {
+      self$age_specific_rates <- age_specific_rates
+    },
+    
+    predict_fertility = function(population, uncertainty = FALSE) {
+      # Calculate base fertility rates
+      fert_rates <- self$get_age_specific_rates(population)
+      
+      if (uncertainty) {
+        # Add uncertainty
+        uncertainty_factor <- rnorm(
+          n = nrow(population),
+          mean = 1,
+          sd = 0.1
+        )
+        fert_rates <- fert_rates * pmax(0, uncertainty_factor)
+      }
+      
+      return(fert_rates)
+    },
+    
+    distribute_births = function(births, population) {
+      # Implement birth distribution by sex
+    }
+  )
+)
+```
+
+### 3. Migration Model
+
+``` r
+MigrationModel <- R6::R6Class(
+  "MigrationModel",
+  public = list(
+    # Model parameters
+    base_rates = NULL,
+    regional_factors = NULL,
+    
+    initialize = function(base_rates = NULL) {
+      self$base_rates <- base_rates
+    },
+    
+    predict_migration = function(population, uncertainty = FALSE) {
+      # Calculate base migration rates
+      migration <- self$get_base_rates(population)
+      
+      if (uncertainty) {
+        # Add uncertainty
+        uncertainty_in <- rnorm(nrow(population), 1, 0.2)
+        uncertainty_out <- rnorm(nrow(population), 1, 0.2)
+        
+        migration$in_migration <- migration$in_migration * pmax(0, uncertainty_in)
+        migration$out_migration <- migration$out_migration * pmax(0, uncertainty_out)
+      }
+      
+      return(migration)
+    }
+  )
+)
+```
+
+## Projection Process {#projection-process}
+
+### 1. Main Projection Workflow
+
+``` r
+project = function(base_population, horizon_year, n_trajectories = 10) {
+  # Initialize
+  var_map <- private$get_variable_mapping()
+  base_year <- max(base_population[[var_map$time]])
+  projection_years <- seq(base_year + 1, horizon_year)
+  
+  # Store trajectories
+  all_trajectories <- vector("list", n_trajectories)
+  
+  # Run trajectories
+  for (traj in 1:n_trajectories) {
+    trajectory_results <- list()
+    current_pop <- copy(base_population[get(var_map$time) == base_year])
+    
+    # Project each year
+    for (year in projection_years) {
+      new_pop <- private$project_single_year(current_pop, year, var_map)
+      trajectory_results[[as.character(year)]] <- copy(new_pop)
+      current_pop <- copy(new_pop)
+    }
+    
+    all_trajectories[[traj]] <- rbindlist(trajectory_results)
+  }
+  
+  # Calculate variants
+  variants <- private$calculate_variants(all_trajectories, var_map)
+  
+  return(list(
+    median = variants$median,
+    variants = variants$all,
+    trajectories = all_trajectories
+  ))
+}
+```
+
+### 2. Single Year Projection
+
+``` r
+project_single_year = function(population, year, var_map) {
+  # Create new year population
+  new_pop <- copy(population)
+  new_pop[, (var_map$time) := year]
+  
+  # Apply demographic components
+  new_pop <- private$apply_mortality(new_pop)
+  new_pop <- private$age_population(new_pop, var_map)
+  new_pop <- private$apply_fertility(new_pop)
+  new_pop <- private$apply_migration(new_pop)
+  
+  return(new_pop)
+}
+```
+
+## Examples {#examples}
+
+### 1. Basic Usage
+
+``` r
+# Load required packages
+library(data.table)
+library(logger)
+
+# Initialize models
+mortality_model <- MortalityModel$new(base_rates = mort_rates)
+fertility_model <- FertilityModel$new(age_specific_rates = fert_rates)
+migration_model <- MigrationModel$new(base_rates = mig_rates)
+
+# Create projector
+projector <- PopulationProjector$new(
+  mortality_model = mortality_model,
+  fertility_model = fertility_model,
+  migration_model = migration_model
+)
+
+# Run projection
+results <- projector$project(
+  base_population = your_base_population,
+  horizon_year = 2030,
+  n_trajectories = 100
+)
+```
+
+### 2. Analyzing Results
+
+``` r
+# Function to analyze projection results
+analyze_projection_results <- function(results) {
+  # Get variants
+  variants <- results$variants
+  
+  # Calculate summary statistics
+  summary_stats <- variants[, .(
+    total_population = sum(pop_medium),
+    population_lower = sum(pop_low),
+    population_upper = sum(pop_high),
+    total_births = sum(births_medium),
+    total_deaths = sum(deaths_medium),
+    net_migration = sum(in_mig_medium) - sum(out_mig_medium)
+  ), by = year]
+  
+  return(summary_stats)
+}
+```
+
+## Validation and Testing {#validation-and-testing}
+
+### 1. Input Validation
+
+``` r
+validate_input <- function(base_population) {
+  required_cols <- c("year", "age_group", "sex", "population", 
+                    "births", "deaths", "in_migration", "out_migration")
+  
+  missing_cols <- setdiff(required_cols, names(base_population))
+  if (length(missing_cols) > 0) {
+    stop(paste("Missing required columns:", 
+               paste(missing_cols, collapse = ", ")))
+  }
+  
+  # Additional validations...
+}
+```
+
+### 2. Results Validation
+
+``` r
+validate_results <- function(results) {
+  # Check population consistency
+  check_population <- results[, .(
+    is_valid = all(population >= 0),
+    min_pop = min(population),
+    max_pop = max(population)
+  ), by = year]
+  
+  # Check demographic balance
+  check_balance <- results[, .(
+    balance = sum(population) - shift(sum(population)) -
+              sum(births) + sum(deaths) -
+              sum(in_migration) + sum(out_migration)
+  ), by = year]
+  
+  return(list(
+    population_check = check_population,
+    balance_check = check_balance
+  ))
+}
+```
+
+## Performance Optimization
+
+### 1. Data.table Operations
+
+``` r
+# Example of optimized operations
+optimize_calculations <- function(dt) {
+  # Use data.table's efficient grouping
+  dt[, pop_by_age := sum(population), by = .(year, age_group)]
+  
+  # Use := for in-place modifications
+  dt[, ':='(
+    prop_by_age = population / pop_by_age,
+    growth_rate = population / shift(population) - 1
+  ), by = .(district, age_group, sex)]
+}
+```
+
+### 2. Memory Management
+
+``` r
+# Example of memory-efficient processing
+process_large_dataset <- function(dt, batch_size = 1000) {
+  n_rows <- nrow(dt)
+  n_batches <- ceiling(n_rows / batch_size)
+  
+  results <- vector("list", n_batches)
+  
+  for (i in seq_len(n_batches)) {
+    start_idx <- (i - 1) * batch_size + 1
+    end_idx <- min(i * batch_size, n_rows)
+    
+    batch <- dt[start_idx:end_idx]
+    results[[i]] <- process_batch(batch)
+  }
+  
+  return(rbindlist(results))
+}
+```
+
+## System Requirements and Dependencies
+
+-   R version 4.0.0 or higher
+-   Required packages:
+    -   data.table (\>= 1.14.0)
+    -   R6 (\>= 2.5.0)
+    -   logger (\>= 0.2.0)
+    -   stats (\>= 4.0.0)
+    -   cmdstanr
+
+## Version History
+
+-   1.0.0 (2025-03-13): Initial release
+-   1.0.1 (2025-03-13): Added uncertainty quantification
+-   1.1.0 (2025-03-13): Enhanced variant calculations
+
+## License
+
+MIT License
+
+## Citation
+
+``` bibtex
+@software{population_projector},
+  author = {Edwar Owusu Manu},
+  title = {Population Projector: A Comprehensive Demographic Projection System},
+  year = {2025},
+  version = {1.1.0},
+  date = {2025-03-13}
+}
+```
