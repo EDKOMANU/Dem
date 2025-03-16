@@ -13,6 +13,7 @@ Imports:
     cmdstanr,
     dplyr,
     stats,
+    testthat,
     tidyr
 Depends: 
     R (>= 4.2),
