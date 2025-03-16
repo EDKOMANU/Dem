@@ -3,7 +3,7 @@
 \docType{data}
 \name{last_coef}
 \alias{last_coef}
-\title{Example Dataset: last_coef}
+\title{Karup-king coefficeints: last_coef}
 \format{
 A numeric matrix with 5 rows and 3 columns:
 \describe{

@@ -7,9 +7,9 @@
 \format{
 A data frame with 21 rows and 3 columns:
 \describe{
-\item{age}{Age groups expressed as single ages}
+\item{Age}{Age groups expressed as single ages}
 \item{Pop}{population from the Ghana 2010 census}
-\item{deaths}{ number of deaths from the Ghana 2010 census}
+\item{Deaths}{ number of deaths from the Ghana 2010 census}
 }
 }
 \source{

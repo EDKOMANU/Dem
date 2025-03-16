@@ -3,7 +3,7 @@
 \docType{data}
 \name{testdata}
 \alias{testdata}
-\title{Example Dataset: testdata}
+\title{Example Dataset: testdata for population projections}
 \format{
 A tibble with 1,224 rows and 10 variables:
 \describe{

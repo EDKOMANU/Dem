@@ -32,7 +32,7 @@
 #' #initialise the model
 #' fertility_model <- FertilityModel$new(data = testdata, variable_mapping = var_mapping, mcmc_settings = mcmc_settings)
 #'
-#' #fit the model using 
+#' #fit the model using
 #' #fertility_model$fit()
 #'
 #' @export

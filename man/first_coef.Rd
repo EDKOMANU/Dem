@@ -3,7 +3,7 @@
 \docType{data}
 \name{first_coef}
 \alias{first_coef}
-\title{Example Dataset: first_coef}
+\title{Karup-king coefficeints: first_coef}
 \format{
 A numeric matrix with 5 rows and 3 columns:
 \describe{

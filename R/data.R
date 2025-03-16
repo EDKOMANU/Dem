@@ -19,14 +19,14 @@
 #'
 #' @format A data frame with 21 rows and 3 columns:
 #' \describe{
-#'   \item{age}{Age groups expressed as single ages}
+#'   \item{Age}{Age groups expressed as single ages}
 #'   \item{Pop}{population from the Ghana 2010 census}
-#'   \item{deaths}{ number of deaths from the Ghana 2010 census}
+#'   \item{Deaths}{ number of deaths from the Ghana 2010 census}
 #' }
 #' @source Ghana Statistical Service
 "gphc2010"
 
-#' Example Dataset: testdata
+#' Example Dataset: testdata for population projections
 #'
 #' Test dataset used for demonstration.
 #' @format A tibble with 1,224 rows and 10 variables:
@@ -45,7 +45,7 @@
 #' @source Generated data
 "testdata"
 
-#' Example Dataset: first_coef
+#' Karup-king coefficeints: first_coef
 #'
 #' These datasets contain coefficients for demographic computations.
 #' @format A numeric matrix with 5 rows and 3 columns:
@@ -57,7 +57,7 @@
 #' @source Karup-king coefficients for age splitting
 "first_coef"
 
-#' Example Dataset: middle_coef
+#' Karup-king coefficeints: middle_coef
 #'
 #' These datasets contain coefficients for demographic computations.
 #' @format A numeric matrix with 5 rows and 3 columns:
@@ -69,7 +69,7 @@
 #' @source Karup-king coefficients for age splitting
 "middle_coef"
 
-#' Example Dataset: last_coef
+#' Karup-king coefficeints: last_coef
 #'
 #' These datasets contain coefficients for demographic computations.
 #' @format A numeric matrix with 5 rows and 3 columns:
@@ -81,7 +81,7 @@
 #' @source Karup-king coefficients for age splitting
 "last_coef"
 
-#' data
+#' testdata for karup-king age splitting
 #'
 #' This dataset contains  population counts for different age groups from 2021 to 2035.
 #' The data is structured with age groups as categories and population estimates for each year.

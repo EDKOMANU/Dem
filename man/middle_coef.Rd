@@ -3,7 +3,7 @@
 \docType{data}
 \name{middle_coef}
 \alias{middle_coef}
-\title{Example Dataset: middle_coef}
+\title{Karup-king coefficeints: middle_coef}
 \format{
 A numeric matrix with 5 rows and 3 columns:
 \describe{

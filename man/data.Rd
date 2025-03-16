@@ -3,7 +3,7 @@
 \docType{data}
 \name{data}
 \alias{data}
-\title{data}
+\title{testdata for karup-king age splitting}
 \format{
 A tibble with 16 rows and 16 columns:
 \describe{
