@@ -4,7 +4,7 @@
 \alias{McmcSettings}
 \title{MCMC Settings Class}
 \description{
-Helper class to manage MCMC parameters consistently across models
+Helper class to manage Markov Chain parameters consistently across models
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
@@ -50,6 +50,25 @@ Initialize MCMC settings
 )}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{iterations}}{Number of total iterations per chain}
+
+\item{\code{warmup}}{Number of warmup iterations}
+
+\item{\code{chains}}{Number of Markov chains}
+
+\item{\code{cores}}{Number of cores for parallel processing}
+
+\item{\code{adapt_delta}}{Target acceptance rate}
+
+\item{\code{max_treedepth}}{Maximum tree depth for NUTS sampler}
+
+\item{\code{seed}}{Random seed for reproducibility}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-McmcSettings-get_brms_settings"></a>}}
@@ -60,6 +79,25 @@ Get settings as list for brms
 \if{html}{\out{<div class="r">}}\preformatted{McmcSettings$get_brms_settings()}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{iterations}}{Number of total iterations per chain}
+
+\item{\code{warmup}}{Number of warmup iterations}
+
+\item{\code{chains}}{Number of Markov chains}
+
+\item{\code{cores}}{Number of cores for parallel processing}
+
+\item{\code{adapt_delta}}{Target acceptance rate}
+
+\item{\code{max_treedepth}}{Maximum tree depth for NUTS sampler}
+
+\item{\code{seed}}{Random seed for reproducibility}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-McmcSettings-clone"></a>}}

@@ -6,6 +6,40 @@
 \description{
 R6 Class for modeling mortality rates using Bayesian methods
 }
+\examples{
+# example code
+mcmc_settings <- McmcSettings$new(
+iterations = 1000,
+warmup = 500,
+chains = 4,
+cores = 4,
+adapt_delta = 0.99,
+max_treedepth = 20,
+seed = 42
+)
+
+# Define variable mapping
+var_mapping <- list(
+ region = "region",
+ district = "district",
+ time = "year",
+ age = "age_group",
+ sex = "sex",
+ population = "population",
+ deaths = "deaths",
+ in_migration= "in_migration" ,
+ out_migration = "out_migration"
+)
+mortality_model <- MortalityModel$new(
+data = testdata,
+variable_mapping = var_mapping,
+mcmc_settings = mcmc_settings
+)
+
+#fit the motality model
+# mortality_model$fit()
+
+}
 \section{Super class}{
 \code{\link[Dem:DemographicModelBase]{Dem::DemographicModelBase}} -> \code{MortalityModel}
 }
@@ -44,6 +78,17 @@ Initialize the mortality model
 \if{html}{\out{<div class="r">}}\preformatted{MortalityModel$new(data, variable_mapping, mcmc_settings = NULL)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{data}}{Data frame with mortality data}
+
+\item{\code{variable_mapping}}{List with variable mappings}
+
+\item{\code{mcmc_settings}}{List with MCMC settings}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-MortalityModel-fit"></a>}}
@@ -54,6 +99,13 @@ Fit the mortality model
 \if{html}{\out{<div class="r">}}\preformatted{MortalityModel$fit(formula = NULL)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{formula}}{Formula for the model}
+}
+\if{html}{\out{</div>}}
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-MortalityModel-predict_mortality"></a>}}
@@ -64,6 +116,16 @@ Predict mortality rates
 \if{html}{\out{<div class="r">}}\preformatted{MortalityModel$predict_mortality(newdata)}\if{html}{\out{</div>}}
 }
 
+\subsection{Arguments}{
+\if{html}{\out{<div class="arguments">}}
+\describe{
+\item{\code{newdata}}{Data frame with new data}
+}
+\if{html}{\out{</div>}}
+}
+\subsection{Returns}{
+Predicted mortality rates
+}
 }
 \if{html}{\out{<hr>}}
 \if{html}{\out{<a id="method-MortalityModel-clone"></a>}}

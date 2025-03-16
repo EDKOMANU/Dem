@@ -1,5 +1,6 @@
-#' MCMC Settings Class
-#' @description Helper class to manage MCMC parameters consistently across models
+#' @name McmcSettings
+#' @title MCMC Settings Class
+#' @description Helper class to manage Markov Chain parameters consistently across models
 #' @export
 McmcSettings <- R6::R6Class(
   "McmcSettings",
@@ -21,7 +22,20 @@ McmcSettings <- R6::R6Class(
     seed = 123,
 
     #' @description Initialize MCMC settings
-    initialize = function(iterations = 2000, warmup = 1000, chains = 4, cores = 4,
+    #' @param iterations Number of total iterations per chain
+
+    #' @param warmup Number of warmup iterations
+
+    #' @param chains Number of Markov chains
+
+    #' @param cores Number of cores for parallel processing
+
+    #' @param adapt_delta Target acceptance rate
+    #' @param max_treedepth Maximum tree depth for NUTS sampler
+
+    #' @param seed Random seed for reproducibility
+    #'
+        initialize = function(iterations = 2000, warmup = 1000, chains = 4, cores = 4,
                         adapt_delta = 0.999, max_treedepth = 15, seed = 123) {
       self$iterations <- iterations
       self$warmup <- warmup
@@ -34,6 +48,18 @@ McmcSettings <- R6::R6Class(
     },
 
     #' @description Get settings as list for brms
+    #' @param iterations Number of total iterations per chain
+
+    #' @param warmup Number of warmup iterations
+
+    #' @param chains Number of Markov chains
+
+    #' @param cores Number of cores for parallel processing
+
+    #' @param adapt_delta Target acceptance rate
+    #' @param max_treedepth Maximum tree depth for NUTS sampler
+
+    #' @param seed Random seed for reproducibility
     get_brms_settings = function() {
       list(
         iter = self$iterations,
