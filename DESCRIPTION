@@ -19,7 +19,7 @@ Imports:
     rstantools (>= 2.4.0),
     stats,
     testthat,
-    tidyr
+    tidyr, cmdstanr
 Depends: 
     R (>= 4.2),
     tidyverse,

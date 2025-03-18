@@ -9,4 +9,4 @@
 
 library(Dem)
 
-testthat::test_check("Dem")
+testthat::test_check("DemogAnr")

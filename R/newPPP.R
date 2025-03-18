@@ -88,12 +88,12 @@ project_population <- function(
       # For each year we simulate growth based on random parameters.
       # You may also add yearly variability to TFR, death_rate, or migration_effect if needed.
       beta0 <- rnorm(num_samples, mean = 0, sd = 0.01) # adjusted for a more realistic baseline
-      beta_TFR <- rnorm(num_samples, mean = 0.006, sd = 0.02) # adjusted TFR impact
-      beta_death <- rnorm(num_samples, mean = 0.01, sd = 0.2) # adjusted death rate impact
-      beta_mig <- rnorm(num_samples, mean = 0.001, sd = 0.2) # adjusted migration impact
+      beta_TFR <- rnorm(num_samples, mean = 0.004, sd = 0.016) # adjusted TFR impact
+      beta_death <- rnorm(num_samples, mean = 0.002, sd = 0.2) # adjusted death rate impact
+      beta_mig <- rnorm(num_samples, mean = 0.002, sd = 0.137) # adjusted migration impact
 
       # Calculate annual growth rate for this year
-      growth_rate <- beta0 + beta_TFR * TFR - beta_death * death_rate + beta_mig * migration_effect
+      growth_rate <- beta0 + beta_TFR * log(1+TFR) - beta_death * log(1+death_rate) + abs(beta_mig * log(1+abs(migration_effect)))
 
       # Additional noise to simulate variability
       noise <- rnorm(num_samples, mean = 0, sd = 0.02)
