@@ -43,7 +43,7 @@ fertility_model <- FertilityModel$new(data = testdata, variable_mapping = var_ma
 
 }
 \section{Super class}{
-\code{\link[Dem:DemographicModelBase]{Dem::DemographicModelBase}} -> \code{FertilityModel}
+\code{\link[DemogAnr:DemographicModelBase]{DemogAnr::DemographicModelBase}} -> \code{FertilityModel}
 }
 \section{Public fields}{
 \if{html}{\out{<div class="r6-fields">}}
@@ -66,8 +66,8 @@ fertility_model <- FertilityModel$new(data = testdata, variable_mapping = var_ma
 \if{html}{\out{
 <details open><summary>Inherited methods</summary>
 <ul>
-<li><span class="pkg-link" data-pkg="Dem" data-topic="DemographicModelBase" data-id="get_mapping"><a href='../../Dem/html/DemographicModelBase.html#method-DemographicModelBase-get_mapping'><code>Dem::DemographicModelBase$get_mapping()</code></a></span></li>
-<li><span class="pkg-link" data-pkg="Dem" data-topic="DemographicModelBase" data-id="prepare_model_data"><a href='../../Dem/html/DemographicModelBase.html#method-DemographicModelBase-prepare_model_data'><code>Dem::DemographicModelBase$prepare_model_data()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="DemogAnr" data-topic="DemographicModelBase" data-id="get_mapping"><a href='../../DemogAnr/html/DemographicModelBase.html#method-DemographicModelBase-get_mapping'><code>DemogAnr::DemographicModelBase$get_mapping()</code></a></span></li>
+<li><span class="pkg-link" data-pkg="DemogAnr" data-topic="DemographicModelBase" data-id="prepare_model_data"><a href='../../DemogAnr/html/DemographicModelBase.html#method-DemographicModelBase-prepare_model_data'><code>DemogAnr::DemographicModelBase$prepare_model_data()</code></a></span></li>
 </ul>
 </details>
 }}
