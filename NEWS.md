@@ -1,3 +1,3 @@
-# Dem 0.1.0
+# DemogAnr 0.1.0
 
 * Initial CRAN submission.
