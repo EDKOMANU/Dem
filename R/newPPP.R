@@ -26,81 +26,107 @@
 #' including the 25th percentile (lower), mean, median, and 75th percentile (higher).
 #'
 #' @examples
-#' sample_data <- data.frame(
-#'   region = c("Northland", "Southshire", "Eastvale"),
-#'   subregion = c("District A", "District B", "District C"),
-#'   base_pop = c(50000, 75000, 60000),
-#'   TFR = c(2.4, 2.3, 2.5),
-#'   death_rate = c(0.012, 0.011, 0.013),
-#'   net_migration = c(200, 300, 250)
-#' )
+#' project_population(region2000 ,base_year = 2000,
+#' TFR_var = "TFR",base_pop_var = "base_pop",
+#' region_var = "Country", death_rate_var = "death_rate",
+#' net_migration_var = "net_migration",,
+#' subregion_var = "Region", future_year = 2009,
+#' num_samples = 5000)
 #'
-#' results <- project_population(
-#'   data = sample_data,
-#'   future_year = 2032,
-#'   base_year = 2020,
-#'   region_var = "region",
-#'   subregion_var = "subregion",
-#'   base_pop_var = "base_pop",
-#'   TFR_var = "TFR",
-#'   death_rate_var = "death_rate",
-#'   net_migration_var = "net_migration",
-#'   num_samples = 10000,
-#'   random_seed = 42
-#' )
-#'
-#' print(results)
 #'
 #' @export
+
 project_population <- function(
-    data, future_year, base_year, region_var = "region", subregion_var = "subregion",
-    base_pop_var = "base_pop", TFR_var = "TFR", death_rate_var = "death_rate",
-    net_migration_var = "net_migration", num_samples = 2000, random_seed = 42
+    data, future_year, base_year,
+    region_var = "region", subregion_var = "subregion",
+    base_pop_var = "base_pop", TFR_var = "TFR",
+    death_rate_var = "death_rate", net_migration_var = "net_migration",
+    num_samples = 2000, random_seed = 42
 ) {
   set.seed(random_seed)
 
-  years_ahead <- future_year - base_year
+  num_years <- future_year - base_year
+  # List to store simulation results for each region per year.
+  # We will append data frames with columns: region, subregion, year, median_population
   results_list <- list()
 
   for (i in 1:nrow(data)) {
-    row <- data[i, ]
+    row_data <- data[i, ]
+    region <- as.character(row_data[[region_var]])
+    subregion <- as.character(row_data[[subregion_var]])
 
-    region <- as.character(row[[region_var]])
-    subregion <- as.character(row[[subregion_var]])
-    base_pop <- as.numeric(row[[base_pop_var]])
-    TFR <- as.numeric(row[[TFR_var]])
-    death_rate <- as.numeric(row[[death_rate_var]])
-    net_migration <- as.numeric(row[[net_migration_var]])
+    # starting population is provided in the data
+    current_pop <- as.numeric(row_data[[base_pop_var]])
 
-    migration_effect <- net_migration / base_pop
+    # Other parameters that are assumed constant across years in this model
+    TFR <- as.numeric(row_data[[TFR_var]])
+    death_rate <- as.numeric(row_data[[death_rate_var]])
+    net_migration <- as.numeric(row_data[[net_migration_var]])
 
-    beta0 <- rnorm(num_samples, mean = 0, sd = 0.02)
-    beta_TFR <- rnorm(num_samples, mean = 0.01, sd = 0.01)
-    beta_death <- rnorm(num_samples, mean = 0.02, sd = 0.01)
-    beta_mig <- rnorm(num_samples, mean = 0.05, sd = 0.02)
+    # Calculate migration effect based on the initial population (could be updated each year if desired)
+    migration_effect <- net_migration / current_pop
 
-    growth_rate <- beta0 + beta_TFR * TFR - beta_death * death_rate + beta_mig * migration_effect
-    sigma <- abs(rnorm(num_samples, mean = 0, sd = 0.02))
-    noise <- rnorm(num_samples, mean = 0, sd = sigma)
+    # Create a temporary data frame to store yearly medians for this region
+    region_results <- data.frame(
+      region = character(),
+      subregion = character(),
+      year = integer(),
+      median_population = double(),
+      stringsAsFactors = FALSE
+    )
 
-    proj_population <- base_pop * exp(growth_rate * years_ahead + noise)
-
-    lower <- quantile(proj_population, 0.25)
-    mean_val <- mean(proj_population)
-    median_val <- median(proj_population)
-    higher <- quantile(proj_population, 0.75)
-
-    results_list[[i]] <- data.frame(
+    # Add the base year as the starting point
+    region_results <- rbind(region_results, data.frame(
       region = region,
       subregion = subregion,
-      base_pop = base_pop,
-      lower = lower,
-      mean = mean_val,
-      median = median_val,
-      higher = higher
-    )
+      year = base_year,
+      median_population = current_pop
+    ))
+
+    # Simulate year by year
+    for (j in 1:num_years) {
+      # For each year we simulate growth based on random parameters.
+      # You may also add yearly variability to TFR, death_rate, or migration_effect if needed.
+      beta0 <- rnorm(num_samples, mean = 0, sd = 0.01) # adjusted for a more realistic baseline
+      beta_TFR <- rnorm(num_samples, mean = 0.006, sd = 0.02) # adjusted TFR impact
+      beta_death <- rnorm(num_samples, mean = 0.01, sd = 0.2) # adjusted death rate impact
+      beta_mig <- rnorm(num_samples, mean = 0.001, sd = 0.2) # adjusted migration impact
+
+      # Calculate annual growth rate for this year
+      growth_rate <- beta0 + beta_TFR * TFR - beta_death * death_rate + beta_mig * migration_effect
+
+      # Additional noise to simulate variability
+      noise <- rnorm(num_samples, mean = 0, sd = 0.02)
+      annual_growth <- growth_rate + noise
+
+      # Update the population for each simulation path using discrete exponential growth over one year
+      simulation_population <- current_pop * exp(annual_growth)
+
+      # Get the median population for this year simulation
+      median_pop <- median(simulation_population)
+
+      # For next year's simulation, we update current_pop to be the median of the current simulation.
+      current_pop <- median_pop
+
+      # Optionally, you can update migration_effect relative to new current_pop:
+      migration_effect <- net_migration / current_pop
+
+      # Year corresponding to this simulation step
+      current_year <- base_year + j
+
+      # Store the results for the current year
+      region_results <- rbind(region_results, data.frame(
+        region = region,
+        subregion = subregion,
+        year = current_year,
+        median_population = median_pop
+      ))
+    }
+
+    results_list[[i]] <- region_results
   }
 
+  # Combine all region results
   results_df <- do.call(rbind, results_list)
   return(results_df)
 }

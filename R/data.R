@@ -115,3 +115,26 @@
 #' head(data)
 "data"
 
+#' region2000  data for basic probabilitic population projections
+#'
+#' This dataset contains  population for regions in Ghana 2000 from the 2000 Census
+#' The data is structured with region, TFR, 2000 pop, death rates, net migration.
+#'
+#' @format A tibble with 16 rows and 6 columns:
+#' \describe{
+#'   \item{Country}{Character. Age group categories, e.g., `0-4`, `5-9`, etc.}
+#'   \item{Region}{Numeric.  population count for the year 2021.}
+#'   \item{base_pop}{Numeric.  population count for the year 2022.}
+#'   \item{TFR}{Numeric.  population count for the year 2023.}
+#'   \item{death_rate}{Numeric.  population count for the year 2024.}
+#'   \item{net_migration}{Numeric.  population count for the year 2025.}
+#' }
+#'
+#' @usage data(region2000 )
+#'
+#' @source Ghana Statistical Service (2000)
+#'
+#' @examples
+#' data(region2000 )
+#' head(region2000 )
+"region2000"

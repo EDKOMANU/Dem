@@ -57,29 +57,12 @@ simulates multiple projection scenarios based on randomly drawn coefficients
 from prior distributions and an exponential growth model.
 }
 \examples{
-sample_data <- data.frame(
-  region = c("Northland", "Southshire", "Eastvale"),
-  subregion = c("District A", "District B", "District C"),
-  base_pop = c(50000, 75000, 60000),
-  TFR = c(2.4, 2.3, 2.5),
-  death_rate = c(0.012, 0.011, 0.013),
-  net_migration = c(200, 300, 250)
-)
+project_population(region2000 ,base_year = 2000,
+TFR_var = "TFR",base_pop_var = "base_pop",
+region_var = "Country", death_rate_var = "death_rate",
+net_migration_var = "net_migration",,
+subregion_var = "Region", future_year = 2009,
+num_samples = 5000)
 
-results <- project_population(
-  data = sample_data,
-  future_year = 2032,
-  base_year = 2020,
-  region_var = "region",
-  subregion_var = "subregion",
-  base_pop_var = "base_pop",
-  TFR_var = "TFR",
-  death_rate_var = "death_rate",
-  net_migration_var = "net_migration",
-  num_samples = 10000,
-  random_seed = 42
-)
-
-print(results)
 
 }
