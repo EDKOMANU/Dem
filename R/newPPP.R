@@ -1,7 +1,7 @@
 #' @name project_population
 #' @title Basic Probabilistic Population Projection
 #'
-#' @description This function projects population trajectories for multiple administrative regions.
+#' @description This function projects population trajectories for multiple administrative regions but the output is the median of the trajectories.
 #'
 #' Project Population for Multiple Regions Using a Bayesian-Inspired Simulation Approach
 #'
