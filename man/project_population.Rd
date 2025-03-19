@@ -46,7 +46,7 @@ A data frame containing the projected population summary statistics for each reg
 including the 25th percentile (lower), mean, median, and 75th percentile (higher).
 }
 \description{
-This function projects population trajectories for multiple administrative regions.
+This function projects population trajectories for multiple administrative regions but the output is the median of the trajectories.
 
 Project Population for Multiple Regions Using a Bayesian-Inspired Simulation Approach
 

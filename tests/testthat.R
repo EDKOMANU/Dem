@@ -7,6 +7,6 @@
 # * https://testthat.r-lib.org/articles/special-files.html
 
 
-library(Dem)
+library(DemogAnr)
 
 testthat::test_check("DemogAnr")
