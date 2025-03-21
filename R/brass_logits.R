@@ -29,7 +29,7 @@
 brass_logit_model <- function(data, qx_col, age_col, standard, standards_data = NULL) {
   # Load the internal standards dataset if not provided
   if (is.null(standards_data)) {
-    data("standards")
+    standards
     standards_data <- standards
   }
 
