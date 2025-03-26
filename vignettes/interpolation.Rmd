@@ -1,0 +1,111 @@
+---
+title: "Interpolation" 
+subtitle: "Theory, Mathematics, and Implementation using DemogAnr package"
+author: "Edward Owusu Manu"
+output: rmarkdown::html_vignette
+vignette: >
+  %\VignetteIndexEntry{Interpolation: Theory, Mathematics, and Implementation in R}
+  %\VignetteEngine{knitr::rmarkdown}
+  %\VignetteEncoding{UTF-8}
+---
+
+# Introduction
+
+Interpolation is a mathematical technique used to estimate unknown values within the range of known data points. It plays a crucial role in demographic analysis, allowing researchers to estimate missing values, smooth population trends, and project demographic indicators.
+
+In demographic studies, data is often collected at discrete time points, leaving gaps that need to be filled for accurate analysis and decision-making. Interpolation provides a systematic way to estimate values between observed data points, ensuring a more comprehensive understanding of trends over time. This technique is particularly useful for handling population estimates, fertility rates, mortality rates, and other demographic indicators.
+
+There are several types of interpolation methods, each with its own strengths and use cases. This vignette covers three key methods:
+
+-   **Lagrange Interpolation**: A polynomial interpolation method that constructs a single polynomial passing through all given points. It is useful for small datasets but can be computationally intensive for larger datasets.
+-   **Newton’s Interpolation**: A method that builds the interpolating polynomial incrementally using divided differences, making it more efficient than Lagrange interpolation.
+-   **Spline Interpolation**: A piecewise polynomial interpolation that ensures smooth transitions between data points, widely used for demographic data due to its flexibility and stability.
+
+This vignette explores these interpolation methods in detail, explaining their mathematical foundations and demonstrating their implementation using the `DemogAnr` package in R.
+
+# Mathematical Formulation
+
+## Polynomial Interpolation
+
+A polynomial interpolation constructs a polynomial of degree $n-1$ that passes through $n$ given points:
+
+$$
+P_n(x) = a_0 + a_1x + a_2x^2 + \dots + a_{n-1}x^{n-1}
+$$
+
+where the coefficients $a_i$ are determined by solving a system of equations. Polynomial interpolation is useful when data points are smooth but can become unstable for large $n$.
+
+## Lagrange Interpolation
+
+Lagrange interpolation constructs an interpolating polynomial as:
+
+$$
+P_n(x) = \sum_{i=1}^{n} y_i L_i(x)
+$$
+
+where the Lagrange basis polynomials are:
+
+$$
+L_i(x) = \prod_{\substack{j=1 \\ j\neq i}}^{n} \frac{x - x_j}{x_i - x_j}
+$$
+
+This method avoids solving linear systems but can be computationally expensive for large datasets.
+
+## Spline Interpolation
+
+Spline interpolation fits piecewise polynomials to the data points, ensuring smooth transitions. A **cubic spline** is given by:
+
+$$
+S_i(x) = a_i + b_i(x - x_i) + c_i(x - x_i)^2 + d_i(x - x_i)^3
+$$
+
+with continuity constraints on the first and second derivatives:
+
+$$
+S_i'(x_i) = S_{i+1}'(x_i), \quad S_i''(x_i) = S_{i+1}''(x_i)
+$$
+
+Spline interpolation is widely used in demographic analysis due to its flexibility and smooth results.
+
+# Implementation in R
+
+## Load the DemogAnr package
+
+```{r setup, include=FALSE, warning=FALSE, message=FALSE}
+library(DemogAnr)
+```
+
+## Example 1: Interpolating between points (vector input)
+
+Before running the interpolation, we define a simple dataset:
+
+```{r}
+x <- c(1990, 2000, 2010, 2020)
+y <- c(24.5, 26.3, 28.1, 29.8)  # Example: Population in millions
+x_new <- c(1995, 2005, 2015)
+
+# Perform interpolation
+interpolation(x, y, x_new, method = "linear")
+```
+
+## Example 2: Interpolating for a dataframe
+
+Let's assume we have a dataset of demographic indicators:
+
+```{r}
+data <- data.frame(
+  year = c(1990, 2000, 2010, 2020),
+"x1990" = c(24.5, 26.3, 28.1, 29.8),
+"x2000" = c(30.2, 31.1, 29.3, 33.1),
+"x2010" = c(28.2, 32.3, 31.1, 34.2),
+"x2020" = c(30.3, 34.1, 33.8, 35.2)
+)
+x_new <- c(1995, 2005, 2015)
+
+# Perform spline interpolation
+interpolation(x = data$year, data = data, y_cols = c("x1990","x2000","x2010","x2020"), x_new = x_new, method = "spline")
+```
+
+# Conclusion
+
+Interpolation is a powerful tool for estimating missing demographic values and smoothing population trends. In this vignette, we introduced key interpolation methods, explained their mathematical foundations, and demonstrated their application using the `DemogAnr` package. Future improvements could include adaptive interpolation techniques for handling irregularly spaced demographic data.
