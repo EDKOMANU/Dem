@@ -41,25 +41,8 @@ cut-off points on a normally distributed values.
 }
 \examples{
 
-# loading required libraries
-library(haven)
-library(dplyr)
-
-# loading data sets
-
-HH_MOD_I1 <- read_dta("C:/Users/PROXIMITY REPORT/Desktop/Poverty Analysis/Malawi data/IHS5/HH_MOD_I1.dta")
-
-mum<- read_dta("C:/Users/PROXIMITY REPORT/Desktop/Poverty Analysis/Malawi data/IHS5/hh_mod_a_filt.dta")
-
-# preparing the data for analysis
-data <- mum |>
- inner_join(HH_MOD_I1, by = "case_id") |>
- mutate(across(where(is.labelled), as_factor),
-        logvalue = log(hh_i03/hhsize)) |>
- filter(hh_i01 != "No")
-
 result <- flagout(
-data = data,
+data = mum,
 varname = "logvalue",
 item = "hh_i02",
 z = 3.5,
