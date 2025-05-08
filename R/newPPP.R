@@ -33,7 +33,7 @@
 #' subregion_var = "Region", future_year = 2009,
 #' num_samples = 5000)
 #'
-#'
+#' #######
 #' @export
 
 project_population <- function(
