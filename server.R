@@ -27,40 +27,40 @@ server <- function(input, output, session) {
 
   # 2. File Input Handling
   shiny::observeEvent(input$basePopulationFile, {
-    shiny::req(input$basePopulationFile) 
+    shiny::req(input$basePopulationFile)
 
     shiny::withProgress(message = 'Processing uploaded file...', value = 0, {
       shiny::incProgress(0.1, detail = "Reading data...")
       tryCatch({
         df <- data.table::fread(input$basePopulationFile$datapath, header = TRUE, stringsAsFactors = FALSE)
-        
+
         shiny::incProgress(0.5, detail = "Validating data structure...")
         validation_result <- validate_base_population(df, REQUIRED_COLS) # Assumes REQUIRED_COLS from global.R
-        
-        rv$validation_message <- validation_result$message 
+
+        rv$validation_message <- validation_result$message
 
         if (validation_result$is_valid) {
-          rv$base_pop_data <- validation_result$data 
+          rv$base_pop_data <- validation_result$data
           if ("year" %in% names(rv$base_pop_data) && is.numeric(rv$base_pop_data$year)) {
              rv$base_year_for_slider <- min(as.numeric(rv$base_pop_data$year), na.rm = TRUE)
           } else {
-             rv$base_year_for_slider <- NULL 
+             rv$base_year_for_slider <- NULL
           }
-          rv$projection_results <- NULL 
-          rv$projection_status_message <- "" 
+          rv$projection_results <- NULL
+          rv$projection_status_message <- ""
         } else {
           rv$base_pop_data <- NULL
           rv$base_year_for_slider <- NULL
         }
         shiny::incProgress(1, detail = "Validation complete.")
-        
+
       }, error = function(e) {
         rv$base_pop_data <- NULL
         rv$base_year_for_slider <- NULL
         rv$projection_results <- NULL
         rv$validation_message <- paste("Error reading or processing file:", e$message)
       })
-    }) 
+    })
   })
 
   # 3. Render Validation Message
@@ -72,15 +72,15 @@ server <- function(input, output, session) {
   horizon_year_reactive <- shiny::reactive({
     h_year_val <- input$horizonYear
     if (is.null(h_year_val) || is.na(as.integer(h_year_val)) || as.integer(h_year_val) <= 0) {
-      return(NULL) 
+      return(NULL)
     }
     return(as.integer(h_year_val))
   })
 
   scenario_params_reactive <- shiny::reactive({
     params <- list(
-      fertility_multiplier = as.numeric(input$fertilityMultiplier), 
-      mortality_multiplier = as.numeric(input$mortalityMultiplier), 
+      fertility_multiplier = as.numeric(input$fertilityMultiplier),
+      mortality_multiplier = as.numeric(input$mortalityMultiplier),
       fertility = list( births_multiplier = as.numeric(input$fertilityMultiplier) ),
       mortality = list( rate_multiplier = as.numeric(input$mortalityMultiplier) ),
       migration = list(
@@ -95,7 +95,7 @@ server <- function(input, output, session) {
 
   # 5. Projection Execution
   shiny::observeEvent(input$runProjectionButton, {
-    shiny::req(rv$base_pop_data, input$horizonYear) 
+    shiny::req(rv$base_pop_data, input$horizonYear)
 
     shiny::withProgress(message = 'Running projection...', value = 0, {
       shiny::incProgress(0.1, detail = "Preparing data...")
@@ -110,7 +110,7 @@ server <- function(input, output, session) {
       if (!is.null(rv$base_year_for_slider) && h_year <= rv$base_year_for_slider) {
         rv$projection_status_message <- paste("Error: Horizon year (", h_year, ") must be greater than the base data year (", rv$base_year_for_slider, ").")
         shiny::showNotification(rv$projection_status_message, type = "error", duration = NULL)
-        return() 
+        return()
       }
 
       shiny::incProgress(0.3, detail = "Projecting population...")
@@ -127,15 +127,15 @@ server <- function(input, output, session) {
           scenario_params = s_params
         )
         rv$projection_results <- results
-        rv$projection_status_message <- "Projection successful!" 
+        rv$projection_status_message <- "Projection successful!"
         shiny::showNotification("Projection completed!", type = "message", duration = 5)
       }, error = function(e) {
-        rv$projection_results <- NULL 
+        rv$projection_results <- NULL
         rv$projection_status_message <- paste("Error during projection:", e$message)
-        shiny::showNotification(paste("Projection Error:", e$message), type = "error", duration = NULL) 
+        shiny::showNotification(paste("Projection Error:", e$message), type = "error", duration = NULL)
       })
-      shiny::incProgress(1, detail = "Finalizing.") 
-    }) 
+      shiny::incProgress(1, detail = "Finalizing.")
+    })
   })
 
   # 6. Render Projection Status Message
@@ -145,18 +145,18 @@ server <- function(input, output, session) {
 
   # 7. Update Pyramid Year Slider Dynamically
   shiny::observe({
-    shiny::req(rv$base_year_for_slider) 
-    current_horizon <- isolate(horizon_year_reactive()) 
+    shiny::req(rv$base_year_for_slider)
+    current_horizon <- isolate(horizon_year_reactive())
     min_val <- as.integer(rv$base_year_for_slider)
-    default_max_offset <- 50 
-    max_val <- if(!is.null(current_horizon) && current_horizon > min_val) current_horizon else min_val + default_max_offset 
+    default_max_offset <- 50
+    max_val <- if(!is.null(current_horizon) && current_horizon > min_val) current_horizon else min_val + default_max_offset
     shiny::updateSliderInput(session, "pyramidYearSlider", min = min_val, max = max_val, value = min_val)
   })
 
   shiny::observe({
-    min_val_slider <- isolate(input$pyramidYearSliderOpts$min) 
+    min_val_slider <- isolate(input$pyramidYearSliderOpts$min)
     if(is.null(min_val_slider) && !is.null(rv$base_year_for_slider)) min_val_slider <- rv$base_year_for_slider
-    if(is.null(min_val_slider)) min_val_slider <- as.integer(format(Sys.Date(), "%Y")) 
+    if(is.null(min_val_slider)) min_val_slider <- as.integer(format(Sys.Date(), "%Y"))
 
     max_val_slider <- isolate(horizon_year_reactive())
     if(is.null(max_val_slider)) max_val_slider <- min_val_slider + 50
@@ -168,10 +168,10 @@ server <- function(input, output, session) {
         min_val_slider <- min(min_val_slider, min_proj_year, na.rm = TRUE)
         max_val_slider <- max(max_val_slider, max_proj_year, na.rm = TRUE)
     }
-    
-    current_slider_val <- isolate(input$pyramidYearSlider) 
+
+    current_slider_val <- isolate(input$pyramidYearSlider)
     new_slider_val <- current_slider_val
-    
+
     if (is.null(new_slider_val) || new_slider_val < min_val_slider || new_slider_val > max_val_slider) {
       new_slider_val <- min_val_slider
     }
@@ -199,7 +199,7 @@ server <- function(input, output, session) {
   # Helper function to create ordered age_group factor
   order_age_groups <- function(ag_vector) {
     get_start_age <- function(ag_str) {
-      tryCatch({ as.numeric(strsplit(gsub("\\+", "", ag_str), "-")[[1]][1]) }, 
+      tryCatch({ as.numeric(strsplit(gsub("\\+", "", ag_str), "-")[[1]][1]) },
                error = function(e) { Inf })
     }
     unique_ags <- unique(as.character(ag_vector))
@@ -213,7 +213,7 @@ server <- function(input, output, session) {
     shiny::req(rv$base_pop_data)
     plot_data <- data.table::copy(rv$base_pop_data)
     if (nrow(plot_data) == 0) return(ggplot2::ggplot() + ggplot2::labs(title = "Base population data is empty.") + ggplot2::theme_void())
-    
+
     pyramid_data <- plot_data[, .(population = sum(population, na.rm = TRUE)), by = .(age_group, sex)]
     if (nrow(pyramid_data) > 0 && "age_group" %in% names(pyramid_data)) {
       pyramid_data[, age_group := order_age_groups(age_group)]
@@ -239,7 +239,7 @@ server <- function(input, output, session) {
   summary_data_reactive <- shiny::reactive({
     shiny::req(rv$projection_results)
     results_dt <- data.table::copy(rv$projection_results)
-    results_dt[, year := as.numeric(as.character(year))] 
+    results_dt[, year := as.numeric(as.character(year))]
     start_year <- min(results_dt$year, na.rm = TRUE)
     end_year <- max(results_dt$year, na.rm = TRUE)
     pop_start <- sum(results_dt[year == start_year, population], na.rm = TRUE)
@@ -313,7 +313,7 @@ server <- function(input, output, session) {
     shiny::req(aggregated_annual_data_reactive(), summary_data_reactive())
     plot_data_annual <- aggregated_annual_data_reactive()
     plot_data_annual[, net_migration := total_in_migration - total_out_migration]
-    plot_data_long <- data.table::melt(plot_data_annual, id.vars = "year", 
+    plot_data_long <- data.table::melt(plot_data_annual, id.vars = "year",
                                        measure.vars = c("total_births", "total_deaths", "net_migration"),
                                        variable.name = "component", value.name = "count")
     start_data_year <- summary_data_reactive()$start_year
@@ -353,19 +353,19 @@ server <- function(input, output, session) {
     results_dt_copy <- data.table::copy(rv$projection_results)
     results_dt_copy[, year := as.numeric(as.character(year))]
     results_dt_copy[, start_age := suppressWarnings(as.numeric(gsub("-.*|\\+", "", age_group)))]
-    results_dt_copy[, broad_age_group := cut(start_age, breaks = c(-Inf, 14, 24, 64, Inf), 
+    results_dt_copy[, broad_age_group := cut(start_age, breaks = c(-Inf, 14, 24, 64, Inf),
                                           labels = c("0-14", "15-24", "25-64", "65+"), right = TRUE, include.lowest = TRUE)]
     age_dist_data <- results_dt_copy[!is.na(broad_age_group), .(group_pop = sum(population, na.rm = TRUE)), by = .(year, broad_age_group)]
     total_pop_per_year <- age_dist_data[, .(total_year_pop = sum(group_pop, na.rm = TRUE)), by = year]
     age_dist_data <- merge(age_dist_data, total_pop_per_year, by = "year")
-    age_dist_data[total_year_pop > 0, percentage := (group_pop / total_year_pop)] 
-    age_dist_data[total_year_pop == 0, percentage := 0] 
+    age_dist_data[total_year_pop > 0, percentage := (group_pop / total_year_pop)]
+    age_dist_data[total_year_pop == 0, percentage := 0]
     if(nrow(age_dist_data) == 0) return(ggplot2::ggplot() + ggplot2::labs(title = "Not enough data for age distribution plot.") + ggplot2::theme_void())
     ggplot2::ggplot(age_dist_data, ggplot2::aes(x = year, y = percentage, fill = broad_age_group)) +
-      ggplot2::geom_area(alpha = 0.8, position = "fill") + 
+      ggplot2::geom_area(alpha = 0.8, position = "fill") +
       ggplot2::labs(title = "Age Distribution Over Time (Percentage)", x = "Year", y = "Percentage of Total Population", fill = "Broad Age Group") +
-      ggplot2::scale_y_continuous(labels = scales::percent_format(accuracy = 1)) + 
-      ggplot2::theme_minimal(base_size = 14) + ggplot2::scale_fill_brewer(palette = "viridis") 
+      ggplot2::scale_y_continuous(labels = scales::percent_format(accuracy = 1)) +
+      ggplot2::theme_minimal(base_size = 14) + ggplot2::scale_fill_brewer(palette = "viridis")
   }, res = 96)
 
   # 5. Data Table Output
@@ -377,7 +377,7 @@ server <- function(input, output, session) {
     if (length(cols_exist_to_round) > 0) {
       display_data[, (cols_exist_to_round) := lapply(.SD, function(x) if(is.numeric(x)) round(x, 0) else x), .SDcols = cols_exist_to_round]
     }
-    numeric_cols_for_dt <- which(sapply(display_data, is.numeric)) -1 
+    numeric_cols_for_dt <- which(sapply(display_data, is.numeric)) -1
     year_col_idx_dt <- which(names(display_data) == "year") -1
     numeric_cols_for_dt_aligned <- setdiff(numeric_cols_for_dt, year_col_idx_dt)
     DT::datatable(display_data, rownames = FALSE, filter = 'top', extensions = c('Buttons', 'FixedHeader'),
