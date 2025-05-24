@@ -1,577 +1,330 @@
-#' Population Projector Class
-#' @description R6 Class for combining demographic models and projecting population
+#' @name PopulationProjector
+#' @title Population Projection Engine
+#' @description R6 Class for projecting population dynamics using component demographic models.
+#' This version is designed to work with placeholder models and includes scenario adjustment capabilities.
 #' @export
 PopulationProjector <- R6::R6Class(
   "PopulationProjector",
 
   public = list(
-    #' @field fertility_model FertilityModel instance
+    #' @field fertility_model An instance of a fertility model (e.g., placeholder FertilityModel).
     fertility_model = NULL,
-    #' @field mortality_model MortalityModel instance
+    #' @field mortality_model An instance of a mortality model (e.g., placeholder MortalityModel).
     mortality_model = NULL,
-    #' @field migration_model MigrationModel instance
+    #' @field migration_model An instance of a migration model (e.g., placeholder MigrationModel).
     migration_model = NULL,
-    #' @field projections Stored projection results
+    #' @field projections Stored projection results from the last run.
     projections = NULL,
-    #' @field projection_variants Different projection scenarios
-    projection_variants = NULL,
-    #' @field simulations Stored simulation results
-    simulations = NULL,
-    #' @field credible_intervals Calculated credible intervals
-    credible_intervals = NULL,
 
-    #' @description Initialize the population projector
+
+    #' @description
+    #' Initialize the PopulationProjector object.
+    #' @param fertility_model An initialized fertility model object.
+    #' @param mortality_model An initialized mortality model object.
+    #' @param migration_model An initialized migration model object.
     initialize = function(fertility_model = NULL, mortality_model = NULL, migration_model = NULL) {
+      if (is.null(fertility_model)) stop("Fertility model must be provided.")
+      if (is.null(mortality_model)) stop("Mortality model must be provided.")
+      if (is.null(migration_model)) stop("Migration model must be provided.")
+      
+      # Basic check for predict methods - can be enhanced with inherits() if class names are fixed
+      if(!("predict_fertility" %in% names(fertility_model))) stop("fertility_model lacks predict_fertility method.")
+      if(!("predict_mortality" %in% names(mortality_model))) stop("mortality_model lacks predict_mortality method.")
+      if(!("predict_migration" %in% names(migration_model))) stop("migration_model lacks predict_migration method.")
+
       self$fertility_model <- fertility_model
       self$mortality_model <- mortality_model
       self$migration_model <- migration_model
-      private$init_timestamp <- "2025-03-12 04:31:20"
-      private$init_user <- "EDKOMANU"
-      private$validate_models()
-      log_info("Population Projector initialized at: {private$init_timestamp} by {private$init_user}")
+
+      # logger::log_info("PopulationProjector initialized with component models.")
     },
 
-    #' @description Project population
-    #' @param base_population Initial population data
-    #' @param horizon_year Target year for projection
-    #' @param n_trajectories Number of trajectories to simulate
-    project = function(base_population, horizon_year, n_trajectories = 10) {
-      # Initialize metadata
-      timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
-      user <- Sys.getenv("USER")
-      log_info(paste0("Starting projection at: ", timestamp))
-      log_info(paste0("User: ", user))
-
-      # Convert to data.table if needed
-      if (!inherits(base_population, "data.table")) {
-        base_population <- as.data.table(base_population)
+    #' @description
+    #' Project population based on component models and scenario parameters.
+    #' @param base_population A data.table with the starting population structure.
+    #' Expected columns: "year", "age_group", "sex", "population", and columns for
+    #' births, deaths, in_migration, out_migration (can be 0 for base year values not used in projection).
+    #' Column names are expected to be standardized as per the placeholder models.
+    #' @param horizon_year The final year for the projection.
+    #' @param scenario_params A list for scenario adjustments. Example:
+    #' `list(fertility = list(births_multiplier = 1.1), mortality = list(rate_multiplier = 0.9), migration = list(in_migration_fixed_change = 10))`
+    #' @return A data.table containing the projected population for each year up to `horizon_year`.
+    project = function(base_population, horizon_year, scenario_params = list()) {
+      if (!data.table::is.data.table(base_population)) {
+        base_population <- data.table::as.data.table(base_population)
+      }
+      if (nrow(base_population) == 0) stop("Base population data is empty.")
+      
+      required_cols <- c("year", "age_group", "sex", "population", 
+                           "births", "deaths", "in_migration", "out_migration") 
+      missing_cols <- setdiff(required_cols, names(base_population))
+      if (length(missing_cols) > 0) {
+        stop(paste("Base population data is missing required columns:", paste(missing_cols, collapse = ", ")))
       }
 
-      # Get variable mappings
-      var_map <- private$get_variable_mapping()
-
-      # Get base year and clean data
-      base_year <- max(base_population$year)
-      base_data <- base_population[year == base_year]
-      log_info(paste0("Base year: ", base_year))
-
-      # Create projection years sequence
-      projection_years <- seq(base_year + 1, horizon_year)
-      log_info(paste0("Projecting years: ", paste(projection_years, collapse = ", ")))
-
-      # Initialize empty list to store each year's results
-      all_years_data <- list()
-
-      # Store base year data
-      all_years_data[[as.character(base_year)]] <- copy(base_data)
-
-      # Project each year
-      current_pop <- copy(base_data)
-
-      for (projection_year in projection_years) {
-        log_info(paste0("\nProjecting year: ", projection_year))
-
-        # Create new year's data with same structure
-        new_year_data <- copy(current_pop)
-
-        # Update year and reset demographic components
-        new_year_data[, ':='(
-          year = projection_year,
-          births = 0,
-          deaths = 0,
-          in_migration = 0,
-          out_migration = 0
-        )]
-
-        # Apply mortality
-        if (!is.null(self$mortality_model)) {
-          mort_rates <- self$mortality_model$predict_mortality(new_year_data)
-          new_year_data[, ':='(
-            deaths = round(pmin(population * mort_rates, population)),
-            population = population - round(pmin(population * mort_rates, population))
-          )]
-
-          log_info(paste0("Applied mortality - Deaths: ", sum(new_year_data$deaths)))
-        }
-
-        # Apply aging - now with var_map
-        new_year_data <- private$age_population(new_year_data, var_map)
-        log_info("Applied aging to population")
-
-        # Apply fertility
-        if (!is.null(self$fertility_model)) {
-          fert_rates <- self$fertility_model$predict_fertility(new_year_data)
-          new_year_data[, births := round(fert_rates)]
-          new_year_data <- private$distribute_births(new_year_data, var_map)  # Added var_map here too
-
-          log_info(paste0("Applied fertility - Births: ", sum(new_year_data$births)))
-        }
-
-        # Apply migration
-        if (!is.null(self$migration_model)) {
-          migration_pred <- self$migration_model$predict_migration(new_year_data)
-          new_year_data[, ':='(
-            in_migration = migration_pred$in_migration,
-            out_migration = pmin(migration_pred$out_migration, population),
-            population = population + migration_pred$in_migration -
-              pmin(migration_pred$out_migration, population)
-          )]
-
-          log_info(paste0("Applied migration - In: ", sum(new_year_data$in_migration),
-                          ", Out: ", sum(new_year_data$out_migration)))
-        }
-
-        # Ensure non-negative population
-        new_year_data[, population := pmax(0, population)]
-
-        # Verify data structure
-        expected_cols <- c("region", "district", "year", "age_group", "sex",
-                           "population", "births", "deaths", "in_migration", "out_migration")
-        missing_cols <- setdiff(expected_cols, names(new_year_data))
-
-        if (length(missing_cols) > 0) {
-          log_error(paste0("Missing columns in year ", projection_year, ": ",
-                           paste(missing_cols, collapse = ", ")))
-          break
-        }
-
-        # Store this year's results
-        all_years_data[[as.character(projection_year)]] <- copy(new_year_data)
-
-        # Log year completion
-        log_info(paste0("Completed projection for year ", projection_year))
-        log_info(paste0("Final population: ", sum(new_year_data$population)))
-
-        # Update current population for next iteration
-        current_pop <- copy(new_year_data)
+      base_year <- max(as.numeric(base_population$year), na.rm = TRUE)
+      if (is.infinite(base_year) || base_year >= horizon_year) {
+        stop("Horizon year must be greater than the base year in base_population.")
       }
 
-      # Combine all years into final dataset
-      final_results <- rbindlist(all_years_data)
+      projection_years <- seq(from = base_year + 1, to = horizon_year, by = 1)
+      all_years_data_list <- list()
+      # Ensure base_population itself has all required columns, fill with 0 if not present (except identifiers/pop)
+      for(col in required_cols) {
+          if (!col %in% names(base_population)) base_population[, (col) := 0]
+      }
+      all_years_data_list[[as.character(base_year)]] <- data.table::copy(base_population)
+      
+      current_pop_data <- data.table::copy(base_population)
 
-      # Verify results
-      summary_by_year <- final_results[, .(
-        total_pop = sum(population),
-        total_births = sum(births),
-        total_deaths = sum(deaths),
-        total_in_mig = sum(in_migration),
-        total_out_mig = sum(out_migration),
-        n_districts = uniqueN(district),
-        n_age_groups = uniqueN(age_group)
-      ), by = year][order(year)]
+      for (proj_year in projection_years) {
+        # logger::log_info("Projecting year: {proj_year}")
+        
+        next_year_data <- data.table::copy(current_pop_data)
+        next_year_data[, year := proj_year]
+        component_cols <- c("births", "deaths", "in_migration", "out_migration")
+        for(col in component_cols) next_year_data[, (col) := 0.0] # Use 0.0 for numeric type consistency initially
 
-      log_info("\nProjection results by year:")
-      print(summary_by_year)
+        # 1. Mortality
+        raw_mortality_rates <- self$mortality_model$predict_mortality(next_year_data)
+        adjusted_mortality_rates <- private$apply_scenario_adjustments(
+          raw_values = raw_mortality_rates,
+          component_type = "mortality",
+          adjustment_type = "rate", 
+          scenario_params = scenario_params
+        )
+        projected_deaths_float <- next_year_data$population * adjusted_mortality_rates
+        projected_deaths_final <- pmax(0, round(projected_deaths_float))
+        projected_deaths_final <- pmin(projected_deaths_final, next_year_data$population) 
+        
+        next_year_data[, deaths := projected_deaths_final]
+        next_year_data[, population := population - deaths]
+        next_year_data[population < 0, population := 0]
 
-      # Store and return results
-      self$projections <- copy(final_results)
-      return(final_results)
-    },
+        # 2. Aging
+        next_year_data <- private$age_population(next_year_data)
+        
+        # 3. Fertility
+        raw_births_counts <- self$fertility_model$predict_fertility(next_year_data)
+        adjusted_births_counts <- private$apply_scenario_adjustments(
+          raw_values = raw_births_counts,
+          component_type = "fertility",
+          adjustment_type = "births", 
+          scenario_params = scenario_params
+        )
+        projected_births_for_groups <- pmax(0, round(adjusted_births_counts))
+        next_year_data[, births := projected_births_for_groups] 
+        next_year_data <- private$distribute_births(next_year_data)
 
-    # calculate_projection_variants = function(trajectories, var_map) {
-    #   log_info("Starting variant calculations...")
-    #
-    #   if (length(trajectories) == 0) {
-    #     log_error("No trajectories available for variant calculation")
-    #     return(NULL)
-    #   }
-    #
-    #   # Initialize result data.table
-    #   result_dt <- data.table()
-    #
-    #   # Combine trajectories with detailed error checking
-    #   for (idx in seq_along(trajectories)) {
-    #     traj <- trajectories[[idx]]
-    #
-    #     if (is.null(traj) || nrow(traj) == 0) {
-    #       log_error(sprintf("Invalid trajectory %d", idx))
-    #       next
-    #     }
-    #
-    #     # Print debug information for each trajectory
-    #     log_debug(sprintf("Processing trajectory %d:", idx))
-    #     log_debug(sprintf("- Years: %s",
-    #                       paste(unique(traj[[var_map$time]]), collapse = ", ")))
-    #     log_debug(sprintf("- Total population: %d",
-    #                       sum(traj[[var_map$population]])))
-    #
-    #     temp_dt <- traj[, .(
-    #       total_population = sum(get(var_map$population)),
-    #       trajectory = idx
-    #     ), by = get(var_map$time)]
-    #
-    #     result_dt <- rbindlist(list(result_dt, temp_dt))
-    #   }
-    #
-    #   if (nrow(result_dt) == 0) {
-    #     log_error("No valid data for variant calculation")
-    #     return(NULL)
-    #   }
-    #
-    #   # Calculate variants
-    #   years <- sort(unique(result_dt[[var_map$time]]))
-    #   log_info(sprintf("Calculating variants for %d years", length(years)))
-    #
-    #   variants <- list()
-    #
-    #   for (yr in years) {
-    #     year_data <- result_dt[get(var_map$time) == yr]
-    #
-    #     # Print debug information for each year
-    #     log_debug(sprintf("Year %d:", yr))
-    #     log_debug(sprintf("- Number of trajectories: %d", nrow(year_data)))
-    #     log_debug(sprintf("- Population range: [%d, %d]",
-    #                       min(year_data$total_population),
-    #                       max(year_data$total_population)))
-    #
-    #     quantiles <- quantile(year_data$total_population,
-    #                           probs = c(0.025, 0.25, 0.5, 0.75, 0.975),
-    #                           na.rm = TRUE)
-    #
-    #     variants[[as.character(yr)]] <- list(
-    #       low = trajectories[[which.min(abs(year_data$total_population - quantiles[1]))]][get(var_map$time) == yr],
-    #       medium_low = trajectories[[which.min(abs(year_data$total_population - quantiles[2]))]][get(var_map$time) == yr],
-    #       median = trajectories[[which.min(abs(year_data$total_population - quantiles[3]))]][get(var_map$time) == yr],
-    #       medium_high = trajectories[[which.min(abs(year_data$total_population - quantiles[4]))]][get(var_map$time) == yr],
-    #       high = trajectories[[which.min(abs(year_data$total_population - quantiles[5]))]][get(var_map$time) == yr]
-    #     )
-    #   }
-    #
-    #   log_info("Variant calculations completed")
-    #   return(variants)
-    # },
+        # 4. Migration
+        raw_migration_list <- self$migration_model$predict_migration(next_year_data)
+        
+        adjusted_in_migration <- private$apply_scenario_adjustments(
+          raw_values = raw_migration_list$in_migration,
+          component_type = "migration",
+          adjustment_type = "in_migration",
+          scenario_params = scenario_params
+        )
+        adjusted_out_migration <- private$apply_scenario_adjustments(
+          raw_values = raw_migration_list$out_migration,
+          component_type = "migration",
+          adjustment_type = "out_migration",
+          scenario_params = scenario_params
+        )
+        
+        projected_in_migration_final <- pmax(0, round(adjusted_in_migration))
+        projected_out_migration_float <- pmax(0, adjusted_out_migration) # Round after checking against pop
+        
+        current_pop_val <- next_year_data$population # Population before any migration in this step
+        pop_after_in_mig <- current_pop_val + projected_in_migration_final
+        
+        # Out-migration cannot exceed population after in-migration
+        projected_out_migration_final <- pmin(round(projected_out_migration_float), pop_after_in_mig)
+        
+        next_year_data[, in_migration := projected_in_migration_final]
+        next_year_data[, out_migration := projected_out_migration_final]
+        next_year_data[, population := population + in_migration - out_migration]
+        next_year_data[population < 0, population := 0]
 
-    #' @description Print projection summary
-    print_summary = function() {
-      cat("\nPopulation Projection Summary\n")
-      cat("===========================\n")
-      cat(sprintf("Initialized: %s by %s\n", private$init_timestamp, private$init_user))
-
-      if (!is.null(self$projections)) {
-        cat(sprintf("\nProjection Details:\n"))
-        cat(sprintf("- Performed: %s by %s\n", private$projection_timestamp, private$projection_user))
-        cat(sprintf("- Horizon Year: %d\n", private$projection_horizon))
-        cat(sprintf("- Number of Trajectories: %d\n", private$projection_trajectories))
+        all_years_data_list[[as.character(proj_year)]] <- data.table::copy(next_year_data)
+        current_pop_data <- next_year_data
       }
 
-      if (!is.null(self$credible_intervals)) {
-        cat(sprintf("\nSimulation Details:\n"))
-        cat(sprintf("- Performed: %s by %s\n", private$simulation_timestamp, private$simulation_user))
-        cat(sprintf("- Number of Simulations: %d\n", private$simulation_count))
-      }
+      self$projections <- data.table::rbindlist(all_years_data_list, use.names = TRUE, fill = TRUE)
+      # logger::log_info("Population projection completed.")
+      return(self$projections)
     }
   ),
 
   private = list(
-    init_timestamp = NULL,
-    init_user = NULL,
-    projection_timestamp = NULL,
-    projection_user = NULL,
-    projection_horizon = NULL,
-    projection_trajectories = NULL,
-    simulation_timestamp = NULL,
-    simulation_user = NULL,
-    simulation_count = NULL,
+    apply_scenario_adjustments = function(raw_values, component_type, adjustment_type, scenario_params) {
+      adjusted_values <- raw_values
+      
+      # Check for component-specific parameter group first
+      component_specific_params <- scenario_params[[component_type]]
 
-    validate_models = function() {
-      if (!is.null(self$fertility_model) && !inherits(self$fertility_model, "FertilityModel")) {
-        stop("fertility_model must be a FertilityModel instance")
+      multiplier <- 1.0
+      fixed_change <- 0.0
+
+      # Determine multiplier
+      multiplier_name_specific <- paste0(adjustment_type, "_multiplier") # e.g. "rate_multiplier"
+      multiplier_name_general <- paste0(component_type, "_multiplier") # e.g. "mortality_multiplier"
+
+      if (!is.null(component_specific_params) && !is.null(component_specific_params[[multiplier_name_specific]])) {
+        multiplier <- component_specific_params[[multiplier_name_specific]]
+      } else if (!is.null(scenario_params[[multiplier_name_general]])) { # Check global for component_multiplier
+        multiplier <- scenario_params[[multiplier_name_general]]
       }
-      if (!is.null(self$mortality_model) && !inherits(self$mortality_model, "MortalityModel")) {
-        stop("mortality_model must be a MortalityModel instance")
+
+      # Determine fixed change
+      fixed_change_name_specific <- paste0(adjustment_type, "_fixed_change") # e.g. "in_migration_fixed_change"
+      fixed_change_name_general <- paste0(component_type, "_fixed_change")   # e.g. "migration_fixed_change"
+
+      if (!is.null(component_specific_params) && !is.null(component_specific_params[[fixed_change_name_specific]])) {
+        fixed_change <- component_specific_params[[fixed_change_name_specific]]
+      } else if (!is.null(scenario_params[[fixed_change_name_general]])) { # Check global for component_fixed_change
+         fixed_change <- scenario_params[[fixed_change_name_general]]
       }
-      if (!is.null(self$migration_model) && !inherits(self$migration_model, "MigrationModel")) {
-        stop("migration_model must be a MigrationModel instance")
-      }
+
+
+      if(!is.numeric(multiplier) || length(multiplier) != 1) multiplier <- 1.0
+      if(!is.numeric(fixed_change) || length(fixed_change) != 1) fixed_change <- 0.0
+      
+      adjusted_values <- (adjusted_values * multiplier) + fixed_change
+      # Ensure non-negativity for rates or counts after adjustment (though pmax(0,...) is also used later for counts)
+      adjusted_values <- pmax(0, adjusted_values) 
+      
+      return(adjusted_values)
     },
 
-    get_variable_mapping = function() {
-      if (!is.null(self$fertility_model)) return(self$fertility_model$get_mapping())
-      if (!is.null(self$mortality_model)) return(self$mortality_model$get_mapping())
-      if (!is.null(self$migration_model)) return(self$migration_model$get_mapping())
-      stop("No models available to get variable mapping")
-    },
+    age_population = function(population_data) {
+      # Simplified aging: Assumes all survivors from a non-terminal group move to the next.
+      # This is appropriate for single-year age groups or a very basic placeholder.
+      # A proper cohort-component model with multi-year age groups would be more complex.
+      
+      dt_copy <- data.table::copy(population_data)
+      dt_copy[, population_after_aging := 0.0] # Initialize with float for sums
 
-    project_single_year = function(population, year, var_map) {
-      tryCatch({
-        pop <- copy(population)
+      # Robustly sort age groups (e.g., "0-4", "5-9", ..., "85+")
+      unique_age_groups <- unique(dt_copy$age_group)
+      get_start_age <- function(ag_str) { 
+          tryCatch({ as.numeric(strsplit(gsub("\\+", "", ag_str), "-")[[1]][1]) }, 
+                   error = function(e) { Inf }) # Treat malformed or non-standard as oldest
+      }
+      sorted_age_groups <- unique_age_groups[order(sapply(unique_age_groups, get_start_age))]
+      
+      # Identify strata for grouping (all columns except population and age_group related)
+      strata_cols <- setdiff(names(dt_copy), c("age_group", "population", "population_after_aging", 
+                                               "births", "deaths", "in_migration", "out_migration", "year_std", "age_factor")) 
+      # Ensure only valid column names are used
+      strata_cols <- intersect(strata_cols, names(dt_copy))
 
-        # Log initial state
-        log_info(paste0("Processing year ", year))
-        log_info(paste0("Initial population: ", sum(pop[[var_map$population]])))
 
-        # 1. Apply mortality
-        if (!is.null(self$mortality_model)) {
-          mort_rates <- self$mortality_model$predict_mortality(pop)
-          pop[, deaths := round(pmin(get(var_map$population) * mort_rates,
-                                     get(var_map$population)))]
-          pop[, (var_map$population) := get(var_map$population) - deaths]
-        }
+      for (i in seq_along(sorted_age_groups)) {
+        current_ag <- sorted_age_groups[i]
+        survivors_in_current_ag <- dt_copy[age_group == current_ag]
 
-        # 2. Age the population
-        pop <- private$age_population(pop, var_map)
-
-        # 3. Apply fertility
-        if (!is.null(self$fertility_model)) {
-          fert_rates <- self$fertility_model$predict_fertility(pop)
-          pop[, births := round(fert_rates)]
-          pop <- private$distribute_births(pop, var_map)
-        }
-
-        # 4. Apply migration
-        if (!is.null(self$migration_model)) {
-          migration_pred <- self$migration_model$predict_migration(pop, type = "both")
-          pop[, `:=`(
-            in_migration = migration_pred$in_migration,
-            out_migration = pmin(migration_pred$out_migration, get(var_map$population))
-          )]
-          pop[, (var_map$population) := get(var_map$population) +
-                in_migration - out_migration]
-        }
-
-        # Ensure non-negative population
-        pop[, (var_map$population) := pmax(0, get(var_map$population))]
-
-        # Log final state
-        log_info(paste0("Final population for year ", year, ": ",
-                        sum(pop[[var_map$population]])))
-
-        return(pop)
-
-      }, error = function(e) {
-        log_error(paste0("Error processing year ", year, ": ", conditionMessage(e)))
-        return(NULL)
-      })
-    },
-
-    age_population = function(population, var_map) {
-      pop <- copy(population)
-
-      # Get age groups and sort them properly
-      age_groups <- unique(pop[[var_map$age]])
-      age_starts <- sapply(strsplit(gsub("\\+", "", age_groups), "-"),
-                           function(x) as.numeric(x[1]))
-      age_order <- order(age_starts)
-      sorted_age_groups <- age_groups[age_order]
-
-      # Process aging by district and sex
-      districts <- unique(pop$district)
-      sexes <- unique(pop[[var_map$sex]])
-
-      for(dist in districts) {
-        for(sex in sexes) {
-          # Process each age group from oldest to youngest (reverse order)
-          for (i in (length(sorted_age_groups)-1):1) {
-            curr_group <- sorted_age_groups[i]
-            next_group <- sorted_age_groups[i + 1]
-
-            # Calculate aging population for current group
-            aging_rate <- private$get_aging_rate(curr_group)
-
-            # Update population within district and sex
-            curr_pop <- pop[district == dist &
-                              get(var_map$sex) == sex &
-                              get(var_map$age) == curr_group]
-
-            aging_pop <- round(curr_pop[[var_map$population]] * aging_rate)
-
-            pop[district == dist &
-                  get(var_map$sex) == sex &
-                  get(var_map$age) == curr_group,
-                (var_map$population) := get(var_map$population) - aging_pop]
-
-            pop[district == dist &
-                  get(var_map$sex) == sex &
-                  get(var_map$age) == next_group,
-                (var_map$population) := get(var_map$population) + aging_pop]
+        if (i < length(sorted_age_groups)) { # Not the terminal age group
+          next_ag <- sorted_age_groups[i+1]
+          
+          if(nrow(survivors_in_current_ag) > 0) {
+            # Aggregate population by strata and assign to next age group
+            moving_pop_summary <- survivors_in_current_ag[, .(pop_to_move = sum(population, na.rm = TRUE)), by = strata_cols]
+            
+            # Update the population_after_aging in dt_copy for the next_ag
+            # This uses a data.table join-update
+            dt_copy[moving_pop_summary, 
+                    on = strata_cols, # Join by strata columns
+                    population_after_aging := population_after_aging + ifelse(age_group == next_ag, i.pop_to_move, 0.0)
+                   ]
           }
+        } else { # Terminal age group - survivors remain
+           if(nrow(survivors_in_current_ag) > 0) {
+             # Add their population to their own group in population_after_aging
+             dt_copy[survivors_in_current_ag,
+                     on = c(strata_cols, "age_group"), # Match exactly these rows
+                     population_after_aging := population_after_aging + i.population
+                    ]
+           }
         }
       }
-
-      return(pop)
+      dt_copy[, population := round(population_after_aging)] # Round at the end of aging
+      dt_copy[, population_after_aging := NULL] # Remove helper column
+      return(dt_copy)
     },
 
-    distribute_births = function(population, var_map) {
-      pop <- copy(population)
-
-      # Process births by district
-      districts <- unique(pop$district)
-
-      for(dist in districts) {
-        # Calculate total births for the district
-        total_births <- sum(pop[district == dist]$births, na.rm = TRUE)
-
-        if (total_births > 0) {
-          # Calculate births by sex using standard sex ratio at birth
-          male_births <- round(total_births * 0.515)
-          female_births <- total_births - male_births
-
-          # Find youngest age group
-          youngest_age <- min(pop[[var_map$age]])
-
-          # Add births to population by sex within district
-          pop[district == dist &
-                get(var_map$age) == youngest_age &
-                get(var_map$sex) == "Male",
-              (var_map$population) := get(var_map$population) + male_births]
-
-          pop[district == dist &
-                get(var_map$age) == youngest_age &
-                get(var_map$sex) == "Female",
-              (var_map$population) := get(var_map$population) + female_births]
-        }
+    distribute_births = function(population_data) {
+      # Assumes 'births' column contains total births for the strata of that row.
+      if (!"births" %in% names(population_data) || sum(population_data$births, na.rm = TRUE) == 0) {
+        return(population_data)
       }
 
-      return(pop)
-    },
-
-    get_aging_rate = function(age_group) {
-      # Extract age range and calculate aging rate
-      ages <- as.numeric(unlist(strsplit(gsub("\\+", "", age_group), "-")))
-      if (length(ages) == 1) return(0)  # Terminal age group
-      return(1 / (diff(ages) + 1))
-    },
-
-    calculate_projection_variants = function(trajectories, var_map) {
-      log_info("Starting variant calculations...")
-
-      if (length(trajectories) == 0) {
-        log_error("No trajectories available for variant calculation")
-        return(NULL)
+      # Robustly find youngest age group
+      unique_age_groups <- unique(population_data$age_group)
+      get_start_age <- function(ag_str) { 
+          tryCatch({ as.numeric(strsplit(gsub("\\+", "", ag_str), "-")[[1]][1]) }, 
+                   error = function(e) { Inf }) 
       }
+      youngest_age_group <- unique_age_groups[which.min(sapply(unique_age_groups, get_start_age))]
 
-      # Initialize storage for variants
-      result_dt <- data.table()
-      variants <- list()
-
-      # Combine trajectories safely
-      for (idx in seq_along(trajectories)) {
-        tryCatch({
-          traj <- trajectories[[idx]]
-          if (!is.null(traj) && nrow(traj) > 0) {
-            # Calculate total population by year for this trajectory
-            temp_dt <- traj[, .(
-              total_population = sum(get(var_map$population)),
-              trajectory = idx
-            ), by = .(year = get(var_map$time))]
-
-            result_dt <- rbindlist(list(result_dt, temp_dt), use.names = TRUE)
+      sex_ratio_male <- 0.515 
+      
+      # Create a summary of total births per stratum (excluding age and sex of parent)
+      # Strata for birth distribution (e.g., region, district, year)
+      strata_cols_for_births <- intersect(names(population_data), c("region", "district", "year"))
+      if(length(strata_cols_for_births) == 0 && "year" %in% names(population_data)) strata_cols_for_births <- "year"
+      if(length(strata_cols_for_births) == 0) { # No identifiable strata, sum all births
+          total_births_overall <- sum(population_data$births, na.rm = TRUE)
+          # This case is tricky: where to add these births? Assume first stratum if data exists.
+          # For robust app, base_population should have clear strata.
+          # For this placeholder, if no strata, this might not work as expected.
+          # logger::log_warn("No strata (region, district, year) for birth distribution. Births might not be assigned correctly if multiple implied strata exist.")
+          # Fallback: if no strata, all births are assigned to the first unique combination of other columns for youngest age/sex.
+          # This part needs careful thought if data has no region/district/year.
+          # For now, assume strata_cols_for_births is not empty or this won't work well.
+          if(nrow(population_data) == 0) return(population_data) # Should not happen if sum(births) > 0
+          # Create a single row of aggregated births if no strata.
+          aggregated_births <- data.table::data.table(total_newborns = total_births_overall)
+          if (length(strata_cols_for_births) > 0) { # Should be true if we proceed
+             aggregated_births <- population_data[, .(total_newborns = sum(births, na.rm = TRUE)), by = strata_cols_for_births]
           }
-        }, error = function(e) {
-          log_error(sprintf("Error processing trajectory %d: %s", idx, conditionMessage(e)))
-        })
+
+      } else {
+          aggregated_births <- population_data[, .(total_newborns = sum(births, na.rm = TRUE)), by = strata_cols_for_births]
       }
+      
+      aggregated_births <- aggregated_births[total_newborns > 0]
+      if(nrow(aggregated_births) == 0) return(population_data)
 
-      if (nrow(result_dt) == 0) {
-        log_error("No valid data for variant calculation")
-        return(NULL)
+      output_pop_data <- data.table::copy(population_data)
+
+      for(r_idx in 1:nrow(aggregated_births)){
+          birth_row <- aggregated_births[r_idx]
+          total_n <- birth_row$total_newborns
+          
+          male_n <- round(total_n * sex_ratio_male)
+          female_n <- total_n - male_n
+
+          # Update Male population for youngest_age_group in the current stratum
+          male_join_cond <- c(list(age_group = youngest_age_group, sex = "Male"), 
+                              sapply(strata_cols_for_births, function(col) birth_row[[col]], simplify=FALSE))
+          names(male_join_cond) <- c("age_group", "sex", strata_cols_for_births)
+          
+          # Check if the target row exists, if not, it implies an incomplete base_population structure (missing 0-4 age groups)
+          # For a robust placeholder, we might need to add rows if they don't exist.
+          # Current data.table behavior for X[Y, on=, Z:=A] will add rows if Y contains keys not in X and X is keyed.
+          # If not keyed, it's an update-join. We assume target rows exist.
+          output_pop_data[male_join_cond, on = names(male_join_cond), population := population + male_n]
+          
+          # Update Female population
+          female_join_cond <- c(list(age_group = youngest_age_group, sex = "Female"), 
+                                sapply(strata_cols_for_births, function(col) birth_row[[col]], simplify=FALSE))
+          names(female_join_cond) <- c("age_group", "sex", strata_cols_for_births)
+          output_pop_data[female_join_cond, on = names(female_join_cond), population := population + female_n]
       }
-
-      # Calculate variants for each year
-      years <- sort(unique(result_dt$year))
-      log_info(sprintf("Calculating variants for %d years", length(years)))
-
-      # Store median trajectory
-      median_trajectory <- NULL
-
-      for (yr in years) {
-        year_data <- result_dt[year == yr]
-
-        if (nrow(year_data) > 0) {
-          # Calculate quantiles
-          quantiles <- quantile(year_data$total_population,
-                                probs = c(0.025, 0.25, 0.5, 0.75, 0.975),
-                                na.rm = TRUE)
-
-          # Find closest trajectories to each quantile
-          closest_trajectories <- sapply(quantiles, function(q) {
-            which.min(abs(year_data$total_population - q))
-          })
-
-          # Store variants for this year
-          variants[[as.character(yr)]] <- list(
-            low = trajectories[[closest_trajectories[1]]][get(var_map$time) == yr],
-            medium_low = trajectories[[closest_trajectories[2]]][get(var_map$time) == yr],
-            median = trajectories[[closest_trajectories[3]]][get(var_map$time) == yr],
-            medium_high = trajectories[[closest_trajectories[4]]][get(var_map$time) == yr],
-            high = trajectories[[closest_trajectories[5]]][get(var_map$time) == yr]
-          )
-
-          # Store median trajectory
-          if (is.null(median_trajectory)) {
-            median_trajectory <- trajectories[[closest_trajectories[3]]]
-          } else {
-            median_trajectory <- rbind(
-              median_trajectory,
-              trajectories[[closest_trajectories[3]]][get(var_map$time) == yr]
-            )
-          }
-        }
-      }
-
-      log_info("Variant calculations completed")
-
-      return(list(
-        variants = variants,
-        median = median_trajectory
-      ))
-    },
-
-    verify_projections = function() {
-      if (is.null(self$projections)) {
-        log_error("Projections are NULL")
-        return(FALSE)
-      }
-
-      var_map <- private$get_variable_mapping()
-
-      # Check basic structure
-      required_cols <- c(var_map$time, var_map$age, var_map$sex, var_map$population)
-      missing_cols <- setdiff(required_cols, names(self$projections))
-
-      if (length(missing_cols) > 0) {
-        log_error(sprintf("Missing columns in projections: %s",
-                          paste(missing_cols, collapse = ", ")))
-        return(FALSE)
-      }
-
-      # Check for valid values
-      if (any(is.na(self$projections[[var_map$population]]))) {
-        log_error("NA values found in population")
-        return(FALSE)
-      }
-
-      if (any(self$projections[[var_map$population]] < 0)) {
-        log_error("Negative population values found")
-        return(FALSE)
-      }
-
-      return(TRUE)
-    },
-    calculate_credible_intervals = function(n_sims, credible_levels) {
-      self$credible_intervals <- list()
-
-      for (level in credible_levels) {
-        probs <- c((1 - level)/2, 0.5, 1 - (1 - level)/2)
-        intervals <- private$calculate_interval_bounds(probs)
-        self$credible_intervals[[as.character(level)]] <- intervals
-      }
-    },
-
-    calculate_interval_bounds = function(probs) {
-      var_map <- private$get_variable_mapping()
-      years <- sort(unique(self$projections[[var_map$time]]))
-
-      intervals <- data.table(year = years)
-      pop_by_year <- lapply(self$simulations, function(sim) {
-        sim[, .(total_pop = sum(get(var_map$population))), by = get(var_map$time)]
-      })
-
-      pop_matrix <- do.call(cbind, lapply(pop_by_year, function(x) x$total_pop))
-      intervals[, c("lower", "median", "upper") :=
-                  as.list(apply(pop_matrix, 1, quantile, probs = probs))]
-
-      return(intervals)
+      
+      return(output_pop_data)
     }
   )
 )
+```
