@@ -1,201 +1,156 @@
-#' Migration Model Class
-#' @description R6 Class for modeling both in and out migration using Bayesian methods
+#' @name MigrationModel
+#' @title Placeholder Migration Model for Shiny App
+#' @description R6 Class for a placeholder migration model. Inherits from DemographicModelBase.
+#' This version has model fitting disabled and uses a heuristic for predictions.
 #' @export
 MigrationModel <- R6::R6Class(
   "MigrationModel",
   inherit = DemographicModelBase,
 
   public = list(
-    #' @field in_model Fitted brms model for in-migration
+    #' @field in_model Placeholder for a fitted in-migration model object. NULL in this version.
     in_model = NULL,
-    #' @field out_model Fitted brms model for out-migration
+    #' @field out_model Placeholder for a fitted out-migration model object. NULL in this version.
     out_model = NULL,
-    #' @field mcmc_settings MCMC settings for model fitting
+    #' @field mcmc_settings An instance of McmcSettings.
     mcmc_settings = NULL,
 
-    #' @description Initialize the migration model
+    #' @description
+    #' Initialize the MigrationModel object.
+    #' @param data A data frame or data.table containing demographic data.
+    #' @param variable_mapping A list mapping standard variable names to actual column names.
+    #' Must include mappings for 'in_migration' and 'out_migration'.
+    #' @param mcmc_settings Optional. An existing McmcSettings object. If NULL, a new one
+    #' with default settings is created.
     initialize = function(data, variable_mapping, mcmc_settings = NULL) {
       super$initialize(data = data, variable_mapping = variable_mapping)
-      self$mcmc_settings <- if (is.null(mcmc_settings)) McmcSettings$new() else mcmc_settings
+
+      if (is.null(mcmc_settings)) {
+        self$mcmc_settings <- McmcSettings$new()
+      } else {
+        if (!inherits(mcmc_settings, "McmcSettings")) {
+          stop("Provided mcmc_settings is not an McmcSettings object.")
+        }
+        self$mcmc_settings <- mcmc_settings
+      }
+
       private$validate_migration_data()
-      private$init_timestamp <- "2025-03-11 18:50:14"
-      private$init_user <- "EDKOMANU"
-      log_info("Migration model initialized at: {private$init_timestamp} by {private$init_user}")
+
+      private$init_timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
+      private$init_user <- Sys.getenv("USER", unset = "UnknownUser")
+      
+      # logger::log_info("MigrationModel (Placeholder) initialized by {private$init_user} at {private$init_timestamp}.")
     },
 
-    #' @description Fit both in and out migration models
+    #' @description
+    #' Placeholder for model fitting. Fitting is disabled in this version.
+    #' @param in_formula Optional. Formula for in-migration model (ignored).
+    #' @param out_formula Optional. Formula for out-migration model (ignored).
     fit = function(in_formula = NULL, out_formula = NULL) {
-      log_info("Fitting migration models...")
-
-      # Default formulas if not provided
-      if (is.null(in_formula)) {
-        in_formula <- bf(
-          in_migration ~ 1 + year_std + age_factor + (1 | region_id) + (1 | district_id),
-          family = negbinomial()
-        )
-      }
-
-      if (is.null(out_formula)) {
-        out_formula <- bf(
-          out_migration ~ 1 + year_std + age_factor + (1 | region_id) + (1 | district_id),
-          family = negbinomial()
-        )
-      }
-
-      model_data <- private$prepare_migration_data()
-      settings <- self$mcmc_settings$get_brms_settings()
-
-      # Fit in-migration model
-      tryCatch({
-        log_info("Fitting in-migration model...")
-        self$in_model <- do.call(brm,
-          c(list(
-            formula = in_formula,
-            data = model_data,
-            backend = "cmdstanr"
-          ), settings)
-        )
-        private$in_model_timestamp <- "2025-03-11 18:50:14"
-        log_info("In-migration model fitted successfully.")
-        private$log_convergence_diagnostics(self$in_model, "in-migration")
-      }, error = function(e) {
-        log_error("In-migration model error: {conditionMessage(e)}")
-        stop(e)
-      })
-
-      # Fit out-migration model with different seed
-      tryCatch({
-        log_info("Fitting out-migration model...")
-        out_settings <- settings
-        out_settings$seed <- settings$seed + 1
-
-        self$out_model <- do.call(brm,
-          c(list(
-            formula = out_formula,
-            data = model_data,
-            backend = "cmdstanr"
-          ), out_settings)
-        )
-        private$out_model_timestamp <- "2025-03-11 18:50:14"
-        log_info("Out-migration model fitted successfully.")
-        private$log_convergence_diagnostics(self$out_model, "out-migration")
-      }, error = function(e) {
-        log_error("Out-migration model error: {conditionMessage(e)}")
-        stop(e)
-      })
+      message("Model fitting is disabled for this placeholder MigrationModel version.")
+      # logger::log_warn("Attempted to call fit() on a placeholder MigrationModel. Fitting is disabled.")
+      invisible(NULL)
     },
 
-    #' @description Predict migration flows
-    #' @param newdata New data for prediction
-    #' @param type Type of prediction ("in", "out", or "both")
-    predict_migration = function(newdata, type = "both") {
-      if (!type %in% c("in", "out", "both")) {
-        stop("Type must be one of: 'in', 'out', 'both'")
+    #' @description
+    #' Predict in-migration and out-migration counts using a heuristic approach.
+    #' This method does not use a statistical model for prediction.
+    #' @param newdata A data frame or data.table with new data for prediction.
+    #' @return A list containing two named numeric vectors:
+    #'         `in_migration`: plausible predicted in-migration counts.
+    #'         `out_migration`: plausible predicted out-migration counts.
+    #'         Each vector corresponds to the rows in `newdata`.
+    predict_migration = function(newdata) {
+      if (is.null(newdata)) {
+        stop("newdata must be provided for prediction.")
+      }
+      
+      prepared_nd <- private$prepare_migration_data(newdata)
+      n_rows <- nrow(prepared_nd)
+      
+      if (n_rows == 0) {
+        return(list(in_migration = numeric(0), out_migration = numeric(0)))
       }
 
-      if ((type %in% c("in", "both") && is.null(self$in_model)) ||
-          (type %in% c("out", "both") && is.null(self$out_model))) {
-        stop("Required models must be fitted before prediction")
+      predicted_in_migration <- numeric(n_rows)
+      predicted_out_migration <- numeric(n_rows)
+
+      # Heuristic:
+      # If 'population' is available and numeric, use a small percentage for migration counts.
+      # Otherwise, generate small random plausible numbers.
+      
+      if ("population" %in% names(prepared_nd) && is.numeric(prepared_nd$population) && all(!is.na(prepared_nd$population))) {
+        # Generate in-migration as a small percentage of population (e.g., 0.1% to 2%)
+        in_rate_per_row <- runif(n_rows, min = 0.001, max = 0.020) # 0.1% to 2.0%
+        predicted_in_migration <- prepared_nd$population * in_rate_per_row
+        
+        # Generate out-migration similarly
+        out_rate_per_row <- runif(n_rows, min = 0.001, max = 0.020)
+        predicted_out_migration <- prepared_nd$population * out_rate_per_row
+        
+        # logger::log_info("Generated {n_rows} migration count predictions using population-based heuristic.")
+      } else {
+        # Fallback if population data is not usable or not present
+        max_random_migrants <- 10 # Max random migrants per group
+        predicted_in_migration <- runif(n_rows, min = 0, max = max_random_migrants)
+        predicted_out_migration <- runif(n_rows, min = 0, max = max_random_migrants)
+        # logger::log_warn("Population data not found, not numeric, or contains NAs in newdata for predict_migration. Using random fallback for {n_rows} predictions.")
       }
-
-      pred_data <- private$prepare_migration_data(newdata)
-      result <- list()
-
-      if (type %in% c("in", "both")) {
-        in_predictions <- posterior_predict(self$in_model, newdata = pred_data, draws = 1)
-        result$in_migration <- pmin(round(in_predictions[1, ]),
-                                  pred_data[[self$var_map$population]] * 0.1)
-      }
-
-      if (type %in% c("out", "both")) {
-        out_predictions <- posterior_predict(self$out_model, newdata = pred_data, draws = 1)
-        result$out_migration <- pmin(round(out_predictions[1, ]),
-                                   pred_data[[self$var_map$population]] * 0.1)
-      }
-
-      return(result)
-    },
-
-    #' @description Calculate net migration
-    calculate_net_migration = function(predictions) {
-      if (!all(c("in_migration", "out_migration") %in% names(predictions))) {
-        stop("Both in and out migration predictions required")
-      }
-      return(predictions$in_migration - predictions$out_migration)
-    },
-
-    #' @description Print model summaries
-    print_summaries = function() {
-      cat("\nMigration Models Summary\n")
-      cat("=====================\n")
-      cat(sprintf("Initialized: %s by %s\n", private$init_timestamp, private$init_user))
-
-      if (!is.null(self$in_model)) {
-        cat("\nIn-Migration Model Summary:\n")
-        cat(sprintf("Fitted: %s\n", private$in_model_timestamp))
-        print(summary(self$in_model))
-      }
-
-      if (!is.null(self$out_model)) {
-        cat("\nOut-Migration Model Summary:\n")
-        cat(sprintf("Fitted: %s\n", private$out_model_timestamp))
-        print(summary(self$out_model))
-      }
+      
+      # Ensure non-negativity. Projector handles rounding and ensuring out_migration <= population.
+      predicted_in_migration <- pmax(0, predicted_in_migration)
+      predicted_out_migration <- pmax(0, predicted_out_migration)
+      
+      return(list(
+        in_migration = as.numeric(predicted_in_migration),
+        out_migration = as.numeric(predicted_out_migration)
+      ))
     }
   ),
 
   private = list(
     init_timestamp = NULL,
     init_user = NULL,
-    in_model_timestamp = NULL,
-    out_model_timestamp = NULL,
 
+    #' @description
+    #' Validate migration-specific aspects of the input data.
+    #' Checks for 'in_migration' and 'out_migration' columns as defined in var_map.
     validate_migration_data = function() {
-      required_vars <- c("in_migration", "out_migration")
-      missing_vars <- setdiff(required_vars, names(self$data))
-      if (length(missing_vars) > 0) {
-        stop(sprintf("Missing required migration variables: %s",
-                    paste(missing_vars, collapse = ", ")))
-      }
-
-      # Validate migration values
-      if (any(self$data$in_migration < 0) || any(self$data$out_migration < 0)) {
-        stop("Migration values cannot be negative")
-      }
-
-      # Check for logical consistency
-      if (any(self$data$out_migration > self$data[[self$var_map$population]])) {
-        log_warn("Some out-migration values exceed population size")
+      required_components <- c("in_migration", "out_migration")
+      for (comp in required_components) {
+        if (is.null(self$var_map[[comp]])) {
+          stop(paste0("Variable mapping for '", comp, "' is missing."))
+        }
+        if (!(self$var_map[[comp]] %in% names(self$data))) {
+          stop(paste0("The '", comp, "' column '", self$var_map[[comp]], 
+                      "' (as specified in variable_mapping) is not found in the input data."))
+        }
+        # Optional: Check if columns are numeric and non-negative in self$data
+        # if (!is.numeric(self$data[[self$var_map[[comp]]]]) || any(self$data[[self$var_map[[comp]]]] < 0, na.rm = TRUE)) {
+        #   logger::log_warn(paste0("The '", comp, "' column in the input data contains non-numeric or negative values."))
+        # }
       }
     },
 
+    #' @description
+    #' Prepare migration data using the base class method.
+    #' Can be extended for migration-specific transformations if needed.
+    #' @param data Optional. Data to prepare. If NULL, uses `self$data`.
+    #' @return A data.table prepared for migration modeling/prediction.
     prepare_migration_data = function(data = NULL) {
-      model_data <- super$prepare_model_data(data)
-
-      model_data[, `:=`(
-        migration_rate_in = in_migration / get(self$var_map$population),
-        migration_rate_out = out_migration / get(self$var_map$population)
-      )]
-
-      return(model_data)
-    },
-
-    log_convergence_diagnostics = function(model, type) {
-      if (is.null(model)) return()
-
-      rhat <- rhat(model)
-      neff <- neff_ratio(model)
-
-      log_info("{type} Model Diagnostics:")
-      log_info("- Rhat range: [{min(rhat)}, {max(rhat)}]")
-      log_info("- Effective sample size ratios: [{min(neff)}, {max(neff)}]")
-
-      if (any(rhat > 1.05)) {
-        log_warn("Some {type} parameters show convergence issues (Rhat > 1.05)")
+      prepared_data <- super$prepare_model_data(data = data)
+      
+      # Ensure 'population' column is numeric if it exists, as the heuristic relies on it.
+      if ("population" %in% names(prepared_data) && !is.numeric(prepared_data$population)) {
+        # logger::log_warn("Population column was not numeric in prepare_migration_data, attempting coercion.")
+        original_pop_class <- class(prepared_data$population)
+        prepared_data[, population := as.numeric(as.character(population))] # as.character for factors
+        if(any(is.na(prepared_data$population)) && !all(is.na(original_pop_class))) {
+            # logger::log_warn("NAs introduced in population column after coercion from ", original_pop_class ," to numeric.")
+        }
       }
-      if (any(neff < 0.1)) {
-        log_warn("Low effective sample sizes in {type} model")
-      }
+      return(prepared_data)
     }
   )
 )
+```
