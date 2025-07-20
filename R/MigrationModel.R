@@ -38,7 +38,7 @@ MigrationModel <- R6::R6Class(
 
       private$init_timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
       private$init_user <- Sys.getenv("USER", unset = "UnknownUser")
-      
+
       # logger::log_info("MigrationModel (Placeholder) initialized by {private$init_user} at {private$init_timestamp}.")
     },
 
@@ -64,10 +64,10 @@ MigrationModel <- R6::R6Class(
       if (is.null(newdata)) {
         stop("newdata must be provided for prediction.")
       }
-      
+
       prepared_nd <- private$prepare_migration_data(newdata)
       n_rows <- nrow(prepared_nd)
-      
+
       if (n_rows == 0) {
         return(list(in_migration = numeric(0), out_migration = numeric(0)))
       }
@@ -78,16 +78,16 @@ MigrationModel <- R6::R6Class(
       # Heuristic:
       # If 'population' is available and numeric, use a small percentage for migration counts.
       # Otherwise, generate small random plausible numbers.
-      
+
       if ("population" %in% names(prepared_nd) && is.numeric(prepared_nd$population) && all(!is.na(prepared_nd$population))) {
         # Generate in-migration as a small percentage of population (e.g., 0.1% to 2%)
         in_rate_per_row <- runif(n_rows, min = 0.001, max = 0.020) # 0.1% to 2.0%
         predicted_in_migration <- prepared_nd$population * in_rate_per_row
-        
+
         # Generate out-migration similarly
         out_rate_per_row <- runif(n_rows, min = 0.001, max = 0.020)
         predicted_out_migration <- prepared_nd$population * out_rate_per_row
-        
+
         # logger::log_info("Generated {n_rows} migration count predictions using population-based heuristic.")
       } else {
         # Fallback if population data is not usable or not present
@@ -96,11 +96,11 @@ MigrationModel <- R6::R6Class(
         predicted_out_migration <- runif(n_rows, min = 0, max = max_random_migrants)
         # logger::log_warn("Population data not found, not numeric, or contains NAs in newdata for predict_migration. Using random fallback for {n_rows} predictions.")
       }
-      
+
       # Ensure non-negativity. Projector handles rounding and ensuring out_migration <= population.
       predicted_in_migration <- pmax(0, predicted_in_migration)
       predicted_out_migration <- pmax(0, predicted_out_migration)
-      
+
       return(list(
         in_migration = as.numeric(predicted_in_migration),
         out_migration = as.numeric(predicted_out_migration)
@@ -122,7 +122,7 @@ MigrationModel <- R6::R6Class(
           stop(paste0("Variable mapping for '", comp, "' is missing."))
         }
         if (!(self$var_map[[comp]] %in% names(self$data))) {
-          stop(paste0("The '", comp, "' column '", self$var_map[[comp]], 
+          stop(paste0("The '", comp, "' column '", self$var_map[[comp]],
                       "' (as specified in variable_mapping) is not found in the input data."))
         }
         # Optional: Check if columns are numeric and non-negative in self$data
@@ -139,7 +139,7 @@ MigrationModel <- R6::R6Class(
     #' @return A data.table prepared for migration modeling/prediction.
     prepare_migration_data = function(data = NULL) {
       prepared_data <- super$prepare_model_data(data = data)
-      
+
       # Ensure 'population' column is numeric if it exists, as the heuristic relies on it.
       if ("population" %in% names(prepared_data) && !is.numeric(prepared_data$population)) {
         # logger::log_warn("Population column was not numeric in prepare_migration_data, attempting coercion.")
@@ -153,4 +153,4 @@ MigrationModel <- R6::R6Class(
     }
   )
 )
-```
+

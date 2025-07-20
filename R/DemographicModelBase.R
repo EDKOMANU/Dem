@@ -32,7 +32,7 @@ DemographicModelBase <- R6::R6Class(
 
       self$data <- data.table::as.data.table(data)
       self$var_map <- variable_mapping
-      
+
       # Initial validation: Check if all columns specified in var_map values exist in the input data
       # This ensures that the mapping refers to actual columns.
       mapped_cols_in_data <- unlist(variable_mapping)
@@ -54,8 +54,8 @@ DemographicModelBase <- R6::R6Class(
 
     #' @description
     #' Prepare data for modeling. This involves selecting relevant columns based
-    #' on `variable_mapping` (from original data names), renaming them to 
-    #' standard names (keys of `variable_mapping`), and creating standardized 
+    #' on `variable_mapping` (from original data names), renaming them to
+    #' standard names (keys of `variable_mapping`), and creating standardized
     #' variables like `year_std` or factor versions of categorical variables.
     #' @param newdata Optional. A new data frame or data.table to prepare.
     #' If NULL, the data provided during initialization (`self$data`) is used.
@@ -86,20 +86,20 @@ DemographicModelBase <- R6::R6Class(
                      paste(missing_source_cols, collapse = ", "))
         stop(msg)
       }
-      
+
       # Create the new prepared_data table by selecting and renaming
       prepared_data <- data.table::data.table()
       for (std_name in names(self$var_map)) {
         original_col_name <- self$var_map[[std_name]]
         # This check should be redundant due to missing_source_cols check above, but good for safety
-        if (original_col_name %in% names(current_data_to_process)) { 
+        if (original_col_name %in% names(current_data_to_process)) {
           prepared_data[, (std_name) := current_data_to_process[[original_col_name]]]
-        } else { 
+        } else {
           # Should not happen if previous check is thorough
           stop(paste0("Critical error: Column '", original_col_name, "' not found during renaming to '", std_name, "'."))
         }
       }
-      
+
       # Standardize 'year' if 'time' variable is now in prepared_data (i.e., was mapped)
       if ("time" %in% names(prepared_data)) {
         if (is.numeric(prepared_data$time)) {
@@ -137,10 +137,10 @@ DemographicModelBase <- R6::R6Class(
       if ("age" %in% names(prepared_data)) {
         prepared_data[, age_factor := factor(age, levels = unique(age), ordered = FALSE)]
       }
-      
+
       # logger::log_info("Model data prepared successfully.")
       return(prepared_data)
     }
   )
 )
-```
+

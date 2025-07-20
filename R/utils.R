@@ -20,14 +20,14 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
   if (!is.data.frame(df)) {
     if (data.table::is.data.table(df)) {
       # Convert to data.frame for consistent checks, though data.table is fine.
-      # df <- as.data.frame(df) 
+      # df <- as.data.frame(df)
       # Or, ensure all checks below work with data.table syntax if df is kept as data.table
     } else {
       errors <- c(errors, "Uploaded data is not a data frame or data.table.")
       return(list(is_valid = FALSE, message = paste(errors, collapse = "\n")))
     }
   }
-  
+
   if (nrow(df) == 0) {
       errors <- c(errors, "Uploaded data is empty (contains no rows).")
       return(list(is_valid = FALSE, message = paste(errors, collapse = "\n")))
@@ -45,10 +45,10 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
     # Define essential columns for NA checks (subset of required_cols or all of them)
     # For the projector, core identifiers and population are critical.
     # Components like births/deaths in base year might be less critical if not used for projection start.
-    essential_na_check_cols <- intersect(required_cols, 
-                                         c("year", "age_group", "sex", "population", 
+    essential_na_check_cols <- intersect(required_cols,
+                                         c("year", "age_group", "sex", "population",
                                            "region", "district")) # region/district if they are used
-    
+
     for (col_name in essential_na_check_cols) {
       if (any(is.na(df[[col_name]]))) {
         errors <- c(errors, paste0("Column '", col_name, "' contains NA values."))
@@ -56,8 +56,8 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
     }
 
     # 4. Check if relevant columns are numeric
-    numeric_cols_to_check <- intersect(required_cols, 
-                                       c("year", "population", "births", "deaths", 
+    numeric_cols_to_check <- intersect(required_cols,
+                                       c("year", "population", "births", "deaths",
                                          "in_migration", "out_migration"))
     for (col_name in numeric_cols_to_check) {
       if (!is.numeric(df[[col_name]])) {
@@ -80,13 +80,13 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
         }
       }
     }
-    
+
     # Re-check after potential coercion for numeric_cols_to_check
     for (col_name in numeric_cols_to_check) {
         if (is.numeric(df[[col_name]])) { # Only proceed if column is now confirmed numeric
             # 5. Check for non-negative values in count/population columns
-            non_negative_cols <- intersect(numeric_cols_to_check, 
-                                           c("population", "births", "deaths", 
+            non_negative_cols <- intersect(numeric_cols_to_check,
+                                           c("population", "births", "deaths",
                                              "in_migration", "out_migration"))
             if (col_name %in% non_negative_cols) {
               if (any(df[[col_name]] < 0, na.rm = TRUE)) {
@@ -123,21 +123,21 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
       # Example: Check if all age groups match a simple regex like "X-Y" or "X+"
       # This is a very basic check. More robust would be to check against a known list of valid age groups.
       # Regex: matches "digits-digits" or "digits+"
-      age_pattern <- "^(\\d{1,3}-\\d{1,3}|\\d{1,3}\\+)$" 
+      age_pattern <- "^(\\d{1,3}-\\d{1,3}|\\d{1,3}\\+)$"
       # Allow for 3 digits for ages like 100+ or 100-104
-      
+
       # Check only non-NA age groups
       valid_age_formats <- grepl(age_pattern, na.omit(df$age_group))
       if (!all(valid_age_formats)) {
         # Find first few problematic age groups to show user
         problematic_ages <- head(na.omit(df$age_group)[!valid_age_formats], 3)
-        errors <- c(errors, paste0("Column 'age_group' contains values with unexpected formats (e.g., '", 
-                                   paste(problematic_ages, collapse="', '"), 
+        errors <- c(errors, paste0("Column 'age_group' contains values with unexpected formats (e.g., '",
+                                   paste(problematic_ages, collapse="', '"),
                                    "'). Expected format like '0-4', '20-24', '85+'.")
                    )
       }
     }
-    
+
     # Check for duplicate rows based on key identifiers
     # Assuming region, district, year, age_group, sex form a unique key for population count
     identifier_cols <- intersect(required_cols, c("region", "district", "year", "age_group", "sex"))
@@ -165,9 +165,9 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
 # Example Usage (Conceptual - not part of the file content for utils.R itself):
 # if (FALSE) {
 #   # Define required columns for the test
-#   req_cols <- c("year", "age_group", "sex", "population", "births", "deaths", 
+#   req_cols <- c("year", "age_group", "sex", "population", "births", "deaths",
 #                 "in_migration", "out_migration", "region", "district")
-# 
+#
 #   # Test case 1: Valid data
 #   valid_df <- data.frame(
 #     year = rep(2020, 4),
@@ -182,22 +182,22 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
 #     district = rep("A", 4)
 #   )
 #   print(validate_base_population(valid_df, req_cols))
-# 
+#
 #   # Test case 2: Missing column
 #   invalid_df_missing_col <- valid_df[, -which(names(valid_df) == "population")]
 #   print(validate_base_population(invalid_df_missing_col, req_cols))
-# 
+#
 #   # Test case 3: NA values
 #   invalid_df_na <- valid_df
 #   invalid_df_na$population[1] <- NA
 #   print(validate_base_population(invalid_df_na, req_cols))
-# 
+#
 #   # Test case 4: Non-numeric population
 #   invalid_df_non_numeric <- valid_df
 #   invalid_df_non_numeric$population <- as.character(invalid_df_non_numeric$population)
 #   invalid_df_non_numeric$population[2] <- "abc" # Introduce non-coercible
 #   print(validate_base_population(invalid_df_non_numeric, req_cols))
-#   
+#
 #   # Test case 4b: Non-numeric population (but coercible)
 #   invalid_df_non_numeric_coercible <- valid_df
 #   invalid_df_non_numeric_coercible$population <- as.character(invalid_df_non_numeric_coercible$population)
@@ -205,23 +205,23 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
 #   print(validation_result_coercible)
 #   if(validation_result_coercible$is_valid) print(str(validation_result_coercible$data))
 #
-# 
+#
 #   # Test case 5: Negative population
 #   invalid_df_negative_pop <- valid_df
 #   invalid_df_negative_pop$population[1] <- -10
 #   print(validate_base_population(invalid_df_negative_pop, req_cols))
-# 
+#
 #   # Test case 6: Multiple base years
 #   invalid_df_multi_year <- valid_df
 #   invalid_df_multi_year$year[3:4] <- 2021
 #   print(validate_base_population(invalid_df_multi_year, req_cols))
-# 
+#
 #   # Test case 7: Invalid age_group format
 #   invalid_df_age_format <- valid_df
 #   invalid_df_age_format$age_group[1] <- "0to4"
 #   invalid_df_age_format$age_group[2] <- "5_9"
 #   print(validate_base_population(invalid_df_age_format, req_cols))
-#   
+#
 #   # Test case 8: Empty data frame
 #   empty_df <- data.frame()
 #   # This will error earlier, but if columns were defined:
@@ -235,4 +235,4 @@ validate_base_population <- function(df, required_cols, var_map = NULL) {
 #   print(validate_base_population(duplicate_df, req_cols))
 # }
 
-```
+

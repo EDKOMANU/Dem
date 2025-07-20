@@ -4,7 +4,7 @@
 #' @description
 #' This function computes a complete life table based on given mortality rates or raw data.
 #' It takes a dataframe with the necessary inputs and computes standard life table metrics.
-#' 
+#'
 #' @param data A data frame containing age-specific mortality probabilities.
 #' @param age Numeric vector: age groups to be presented in point format, e.g., 0, 1, 5, 10, ...
 #' @param nMx Numeric vector (optional): the observed mortality rates in the population. If not provided, `pop` and `Dx` must be given to compute it.

@@ -26,7 +26,7 @@ PopulationProjector <- R6::R6Class(
       if (is.null(fertility_model)) stop("Fertility model must be provided.")
       if (is.null(mortality_model)) stop("Mortality model must be provided.")
       if (is.null(migration_model)) stop("Migration model must be provided.")
-      
+
       # Basic check for predict methods - can be enhanced with inherits() if class names are fixed
       if(!("predict_fertility" %in% names(fertility_model))) stop("fertility_model lacks predict_fertility method.")
       if(!("predict_mortality" %in% names(mortality_model))) stop("mortality_model lacks predict_mortality method.")
@@ -54,9 +54,9 @@ PopulationProjector <- R6::R6Class(
         base_population <- data.table::as.data.table(base_population)
       }
       if (nrow(base_population) == 0) stop("Base population data is empty.")
-      
-      required_cols <- c("year", "age_group", "sex", "population", 
-                           "births", "deaths", "in_migration", "out_migration") 
+
+      required_cols <- c("year", "age_group", "sex", "population",
+                           "births", "deaths", "in_migration", "out_migration")
       missing_cols <- setdiff(required_cols, names(base_population))
       if (length(missing_cols) > 0) {
         stop(paste("Base population data is missing required columns:", paste(missing_cols, collapse = ", ")))
@@ -74,12 +74,12 @@ PopulationProjector <- R6::R6Class(
           if (!col %in% names(base_population)) base_population[, (col) := 0]
       }
       all_years_data_list[[as.character(base_year)]] <- data.table::copy(base_population)
-      
+
       current_pop_data <- data.table::copy(base_population)
 
       for (proj_year in projection_years) {
         # logger::log_info("Projecting year: {proj_year}")
-        
+
         next_year_data <- data.table::copy(current_pop_data)
         next_year_data[, year := proj_year]
         component_cols <- c("births", "deaths", "in_migration", "out_migration")
@@ -90,35 +90,35 @@ PopulationProjector <- R6::R6Class(
         adjusted_mortality_rates <- private$apply_scenario_adjustments(
           raw_values = raw_mortality_rates,
           component_type = "mortality",
-          adjustment_type = "rate", 
+          adjustment_type = "rate",
           scenario_params = scenario_params
         )
         projected_deaths_float <- next_year_data$population * adjusted_mortality_rates
         projected_deaths_final <- pmax(0, round(projected_deaths_float))
-        projected_deaths_final <- pmin(projected_deaths_final, next_year_data$population) 
-        
+        projected_deaths_final <- pmin(projected_deaths_final, next_year_data$population)
+
         next_year_data[, deaths := projected_deaths_final]
         next_year_data[, population := population - deaths]
         next_year_data[population < 0, population := 0]
 
         # 2. Aging
         next_year_data <- private$age_population(next_year_data)
-        
+
         # 3. Fertility
         raw_births_counts <- self$fertility_model$predict_fertility(next_year_data)
         adjusted_births_counts <- private$apply_scenario_adjustments(
           raw_values = raw_births_counts,
           component_type = "fertility",
-          adjustment_type = "births", 
+          adjustment_type = "births",
           scenario_params = scenario_params
         )
         projected_births_for_groups <- pmax(0, round(adjusted_births_counts))
-        next_year_data[, births := projected_births_for_groups] 
+        next_year_data[, births := projected_births_for_groups]
         next_year_data <- private$distribute_births(next_year_data)
 
         # 4. Migration
         raw_migration_list <- self$migration_model$predict_migration(next_year_data)
-        
+
         adjusted_in_migration <- private$apply_scenario_adjustments(
           raw_values = raw_migration_list$in_migration,
           component_type = "migration",
@@ -131,16 +131,16 @@ PopulationProjector <- R6::R6Class(
           adjustment_type = "out_migration",
           scenario_params = scenario_params
         )
-        
+
         projected_in_migration_final <- pmax(0, round(adjusted_in_migration))
         projected_out_migration_float <- pmax(0, adjusted_out_migration) # Round after checking against pop
-        
+
         current_pop_val <- next_year_data$population # Population before any migration in this step
         pop_after_in_mig <- current_pop_val + projected_in_migration_final
-        
+
         # Out-migration cannot exceed population after in-migration
         projected_out_migration_final <- pmin(round(projected_out_migration_float), pop_after_in_mig)
-        
+
         next_year_data[, in_migration := projected_in_migration_final]
         next_year_data[, out_migration := projected_out_migration_final]
         next_year_data[, population := population + in_migration - out_migration]
@@ -159,7 +159,7 @@ PopulationProjector <- R6::R6Class(
   private = list(
     apply_scenario_adjustments = function(raw_values, component_type, adjustment_type, scenario_params) {
       adjusted_values <- raw_values
-      
+
       # Check for component-specific parameter group first
       component_specific_params <- scenario_params[[component_type]]
 
@@ -189,11 +189,11 @@ PopulationProjector <- R6::R6Class(
 
       if(!is.numeric(multiplier) || length(multiplier) != 1) multiplier <- 1.0
       if(!is.numeric(fixed_change) || length(fixed_change) != 1) fixed_change <- 0.0
-      
+
       adjusted_values <- (adjusted_values * multiplier) + fixed_change
       # Ensure non-negativity for rates or counts after adjustment (though pmax(0,...) is also used later for counts)
-      adjusted_values <- pmax(0, adjusted_values) 
-      
+      adjusted_values <- pmax(0, adjusted_values)
+
       return(adjusted_values)
     },
 
@@ -201,21 +201,21 @@ PopulationProjector <- R6::R6Class(
       # Simplified aging: Assumes all survivors from a non-terminal group move to the next.
       # This is appropriate for single-year age groups or a very basic placeholder.
       # A proper cohort-component model with multi-year age groups would be more complex.
-      
+
       dt_copy <- data.table::copy(population_data)
       dt_copy[, population_after_aging := 0.0] # Initialize with float for sums
 
       # Robustly sort age groups (e.g., "0-4", "5-9", ..., "85+")
       unique_age_groups <- unique(dt_copy$age_group)
-      get_start_age <- function(ag_str) { 
-          tryCatch({ as.numeric(strsplit(gsub("\\+", "", ag_str), "-")[[1]][1]) }, 
+      get_start_age <- function(ag_str) {
+          tryCatch({ as.numeric(strsplit(gsub("\\+", "", ag_str), "-")[[1]][1]) },
                    error = function(e) { Inf }) # Treat malformed or non-standard as oldest
       }
       sorted_age_groups <- unique_age_groups[order(sapply(unique_age_groups, get_start_age))]
-      
+
       # Identify strata for grouping (all columns except population and age_group related)
-      strata_cols <- setdiff(names(dt_copy), c("age_group", "population", "population_after_aging", 
-                                               "births", "deaths", "in_migration", "out_migration", "year_std", "age_factor")) 
+      strata_cols <- setdiff(names(dt_copy), c("age_group", "population", "population_after_aging",
+                                               "births", "deaths", "in_migration", "out_migration", "year_std", "age_factor"))
       # Ensure only valid column names are used
       strata_cols <- intersect(strata_cols, names(dt_copy))
 
@@ -226,14 +226,14 @@ PopulationProjector <- R6::R6Class(
 
         if (i < length(sorted_age_groups)) { # Not the terminal age group
           next_ag <- sorted_age_groups[i+1]
-          
+
           if(nrow(survivors_in_current_ag) > 0) {
             # Aggregate population by strata and assign to next age group
             moving_pop_summary <- survivors_in_current_ag[, .(pop_to_move = sum(population, na.rm = TRUE)), by = strata_cols]
-            
+
             # Update the population_after_aging in dt_copy for the next_ag
             # This uses a data.table join-update
-            dt_copy[moving_pop_summary, 
+            dt_copy[moving_pop_summary,
                     on = strata_cols, # Join by strata columns
                     population_after_aging := population_after_aging + ifelse(age_group == next_ag, i.pop_to_move, 0.0)
                    ]
@@ -261,14 +261,14 @@ PopulationProjector <- R6::R6Class(
 
       # Robustly find youngest age group
       unique_age_groups <- unique(population_data$age_group)
-      get_start_age <- function(ag_str) { 
-          tryCatch({ as.numeric(strsplit(gsub("\\+", "", ag_str), "-")[[1]][1]) }, 
-                   error = function(e) { Inf }) 
+      get_start_age <- function(ag_str) {
+          tryCatch({ as.numeric(strsplit(gsub("\\+", "", ag_str), "-")[[1]][1]) },
+                   error = function(e) { Inf })
       }
       youngest_age_group <- unique_age_groups[which.min(sapply(unique_age_groups, get_start_age))]
 
-      sex_ratio_male <- 0.515 
-      
+      sex_ratio_male <- 0.515
+
       # Create a summary of total births per stratum (excluding age and sex of parent)
       # Strata for birth distribution (e.g., region, district, year)
       strata_cols_for_births <- intersect(names(population_data), c("region", "district", "year"))
@@ -292,7 +292,7 @@ PopulationProjector <- R6::R6Class(
       } else {
           aggregated_births <- population_data[, .(total_newborns = sum(births, na.rm = TRUE)), by = strata_cols_for_births]
       }
-      
+
       aggregated_births <- aggregated_births[total_newborns > 0]
       if(nrow(aggregated_births) == 0) return(population_data)
 
@@ -301,30 +301,30 @@ PopulationProjector <- R6::R6Class(
       for(r_idx in 1:nrow(aggregated_births)){
           birth_row <- aggregated_births[r_idx]
           total_n <- birth_row$total_newborns
-          
+
           male_n <- round(total_n * sex_ratio_male)
           female_n <- total_n - male_n
 
           # Update Male population for youngest_age_group in the current stratum
-          male_join_cond <- c(list(age_group = youngest_age_group, sex = "Male"), 
+          male_join_cond <- c(list(age_group = youngest_age_group, sex = "Male"),
                               sapply(strata_cols_for_births, function(col) birth_row[[col]], simplify=FALSE))
           names(male_join_cond) <- c("age_group", "sex", strata_cols_for_births)
-          
+
           # Check if the target row exists, if not, it implies an incomplete base_population structure (missing 0-4 age groups)
           # For a robust placeholder, we might need to add rows if they don't exist.
           # Current data.table behavior for X[Y, on=, Z:=A] will add rows if Y contains keys not in X and X is keyed.
           # If not keyed, it's an update-join. We assume target rows exist.
           output_pop_data[male_join_cond, on = names(male_join_cond), population := population + male_n]
-          
+
           # Update Female population
-          female_join_cond <- c(list(age_group = youngest_age_group, sex = "Female"), 
+          female_join_cond <- c(list(age_group = youngest_age_group, sex = "Female"),
                                 sapply(strata_cols_for_births, function(col) birth_row[[col]], simplify=FALSE))
           names(female_join_cond) <- c("age_group", "sex", strata_cols_for_births)
           output_pop_data[female_join_cond, on = names(female_join_cond), population := population + female_n]
       }
-      
+
       return(output_pop_data)
     }
   )
 )
-```
+

@@ -36,7 +36,7 @@ MortalityModel <- R6::R6Class(
 
       private$init_timestamp <- format(Sys.time(), "%Y-%m-%d %H:%M:%S")
       private$init_user <- Sys.getenv("USER", unset = "UnknownUser")
-      
+
       # logger::log_info("MortalityModel (Placeholder) initialized by {private$init_user} at {private$init_timestamp}.")
     },
 
@@ -59,10 +59,10 @@ MortalityModel <- R6::R6Class(
       if (is.null(newdata)) {
         stop("newdata must be provided for prediction.")
       }
-      
+
       prepared_nd <- private$prepare_mortality_data(newdata)
       n_rows <- nrow(prepared_nd)
-      
+
       if (n_rows == 0) {
         return(numeric(0))
       }
@@ -73,7 +73,7 @@ MortalityModel <- R6::R6Class(
       if ("age_factor" %in% names(prepared_nd)) {
         # Convert age_factor to character for easier matching
         age_groups_char <- as.character(prepared_nd$age_factor)
-        
+
         for (i in 1:n_rows) {
           age_val <- age_groups_char[i]
           # Example: Higher rates for very young and very old, lower for intermediate.
@@ -84,7 +84,7 @@ MortalityModel <- R6::R6Class(
           } else if (grepl("^(5-9|05-09|10-14)", age_val, ignore.case = TRUE)) { # Young children
             predicted_rates[i] <- runif(1, min = 0.0005, max = 0.002) # e.g., 0.5-2 per 1000
           } else if (grepl("^(15-19|20-24|25-29|30-34|35-39|40-44|45-49)", age_val, ignore.case = TRUE)) { # Young adults / Mid-life
-            predicted_rates[i] <- runif(1, min = 0.001, max = 0.005) 
+            predicted_rates[i] <- runif(1, min = 0.001, max = 0.005)
           } else if (grepl("^(50-54|55-59|60-64)", age_val, ignore.case = TRUE)) { # Older adults
             predicted_rates[i] <- runif(1, min = 0.005, max = 0.02)
           } else if (grepl("^(65-69|70-74|75-79)", age_val, ignore.case = TRUE)) { # Elderly
@@ -103,10 +103,10 @@ MortalityModel <- R6::R6Class(
         predicted_rates <- runif(n_rows, min = 0.001, max = 0.01)
         # logger::log_warn("age_factor not found in newdata for predict_mortality. Using random fallback rates for {n_rows} predictions.")
       }
-      
+
       # Ensure rates are non-negative (should be by runif design, but good practice)
       predicted_rates <- pmax(0, predicted_rates)
-      
+
       return(as.numeric(predicted_rates))
     }
   ),
@@ -123,7 +123,7 @@ MortalityModel <- R6::R6Class(
         stop("Variable mapping for 'deaths' is missing.")
       }
       if (!(self$var_map$deaths %in% names(self$data))) {
-        stop(paste0("The 'deaths' column '", self$var_map$deaths, 
+        stop(paste0("The 'deaths' column '", self$var_map$deaths,
                     "' (as specified in variable_mapping) is not found in the input data."))
       }
       # Optional: Check if deaths column is numeric and non-negative
@@ -139,7 +139,7 @@ MortalityModel <- R6::R6Class(
     #' @return A data.table prepared for mortality modeling/prediction.
     prepare_mortality_data = function(data = NULL) {
       prepared_data <- super$prepare_model_data(data = data)
-      
+
       # Ensure 'age_factor' is present if the heuristic depends on it.
       # The base class's prepare_model_data should create 'age_factor' if 'age' is mapped.
       if (!("age_factor" %in% names(prepared_data)) && "age" %in% names(prepared_data)) {
@@ -149,9 +149,8 @@ MortalityModel <- R6::R6Class(
          prepared_data[, age_factor := factor(age, levels = unique(age), ordered = FALSE)]
          # logger::log_info("Created 'age_factor' in prepare_mortality_data as it was missing.")
       }
-      
+
       return(prepared_data)
     }
   )
 )
-```
